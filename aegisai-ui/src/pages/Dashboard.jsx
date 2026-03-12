@@ -1,239 +1,447 @@
 import { useEffect, useState } from "react"
 import {
-  LineChart,
-  Line,
-  XAxis,
-  YAxis,
-  CartesianGrid,
-  Tooltip,
-  ResponsiveContainer
+LineChart,
+Line,
+XAxis,
+YAxis,
+CartesianGrid,
+Tooltip,
+ResponsiveContainer,
+Legend
 } from "recharts"
 
-function Dashboard() {
+function Dashboard(){
 
-  const [metrics, setMetrics] = useState({
-    cpu: 0,
-    ram: 0,
-    disk: 0
-  })
+const [metrics,setMetrics]=useState({
+cpu:0,
+ram:0,
+disk:0,
+network:0
+})
 
-  const [history, setHistory] = useState([])
+const [history,setHistory]=useState([])
+const [processes,setProcesses]=useState([])
+const [cpuThreshold,setCpuThreshold]=useState(90)
+const [notifications,setNotifications]=useState([])
+const [hoverCard,setHoverCard]=useState(null)
 
-  useEffect(() => {
+const clamp=v=>Math.max(0,Math.min(100,Number(v)||0))
 
-    let mounted = true
+useEffect(()=>{
 
-    const clamp = (value) => Math.max(0, Math.min(100, Number(value) || 0))
+const loadThreshold=async()=>{
 
-    const fetchMetrics = async () => {
-      try {
+try{
+const res=await fetch("http://127.0.0.1:8000/get-cpu-threshold")
+const data=await res.json()
 
-        const response = await fetch("http://127.0.0.1:8000/status")
-
-        if (!response.ok) {
-          console.error("Server error:", response.status)
-          return
-        }
-
-        const data = await response.json()
-
-        if (!mounted) return
-
-        const newData = {
-          time: new Date().toLocaleTimeString([], { hour12: false }),
-          cpu: clamp(data.cpu),
-          ram: clamp(data.memory),
-          disk: clamp(data.disk)
-        }
-
-        setMetrics(newData)
-
-        setHistory(prev => {
-          const updated = [...prev, newData]
-          if (updated.length > 15) updated.shift()
-          return updated
-        })
-
-      } catch (error) {
-        console.error("Backend connection failed:", error)
-      }
-    }
-
-    fetchMetrics()
-    const interval = setInterval(fetchMetrics, 2000)
-
-    return () => {
-      mounted = false
-      clearInterval(interval)
-    }
-
-  }, [])
-
-  return (
-    <div style={{ display: "flex", gap: "30px" }}>
-
-      <div style={{ flex: 3 }}>
-
-        <h2 style={{ marginBottom: "30px", fontSize: "24px" }}>
-          System Dashboard
-        </h2>
-
-        <div style={{ display: "flex", gap: "25px", marginBottom: "40px" }}>
-          <MetricCard title="CPU Usage" value={metrics.cpu} />
-          <MetricCard title="RAM Usage" value={metrics.ram} />
-          <MetricCard title="Disk Usage" value={metrics.disk} />
-        </div>
-
-        <div style={chartContainer}>
-          <h3 style={{ marginBottom: "20px" }}>Live Usage Trend</h3>
-
-          <ResponsiveContainer width="100%" height={300}>
-            <LineChart data={history}>
-              <CartesianGrid stroke="#334155" />
-              <XAxis dataKey="time" stroke="#cbd5e1" />
-              <YAxis stroke="#cbd5e1" domain={[0, 100]} />
-              <Tooltip />
-              <Line type="monotone" dataKey="cpu" stroke="#22c55e" />
-              <Line type="monotone" dataKey="ram" stroke="#f59e0b" />
-              <Line type="monotone" dataKey="disk" stroke="#ef4444" />
-            </LineChart>
-          </ResponsiveContainer>
-
-        </div>
-      </div>
-
-      <div style={{ flex: 1 }}>
-        <AlertPanel cpu={metrics.cpu} ram={metrics.ram} disk={metrics.disk} />
-      </div>
-
-    </div>
-  )
+if(data.cpu){
+setCpuThreshold(data.cpu)
 }
 
-/* ------------------ Metric Card ------------------ */
-
-function MetricCard({ title, value }) {
-
-  const safeValue = Math.max(0, Math.min(100, value))
-
-  const barColor =
-    safeValue < 50 ? "#22c55e" :
-    safeValue < 80 ? "#f59e0b" :
-    "#ef4444"
-
-  return (
-    <div style={cardStyle}>
-      <h3 style={{ marginBottom: "15px" }}>{title}</h3>
-
-      <div style={{ fontSize: "30px", fontWeight: "bold", marginBottom: "10px" }}>
-        {safeValue.toFixed(1)}%
-      </div>
-
-      <div style={progressBackground}>
-        <div
-          style={{
-            ...progressFill,
-            width: `${safeValue}%`,
-            backgroundColor: barColor
-          }}
-        />
-      </div>
-    </div>
-  )
+}catch(e){
+console.log(e)
 }
 
-/* ------------------ Alert Panel ------------------ */
-
-function AlertPanel({ cpu, ram, disk }) {
-
-  const alerts = []
-
-  if (cpu > 80) alerts.push("High CPU usage detected")
-  if (ram > 80) alerts.push("High RAM usage detected")
-  if (disk > 85) alerts.push("Disk almost full")
-
-  const status =
-    alerts.length === 0 ? "Healthy" :
-    alerts.length === 1 ? "Warning" :
-    "Critical"
-
-  const statusColor =
-    status === "Healthy" ? "#22c55e" :
-    status === "Warning" ? "#f59e0b" :
-    "#ef4444"
-
-  return (
-    <div style={alertContainer}>
-      <h3 style={{ marginBottom: "20px" }}>System Status</h3>
-
-      <div style={{
-        fontSize: "18px",
-        marginBottom: "15px",
-        fontWeight: "bold",
-        color: statusColor
-      }}>
-        {status}
-      </div>
-
-      {alerts.length === 0 ? (
-        <p style={{ color: "#94a3b8" }}>No active alerts</p>
-      ) : (
-        alerts.map((alert, index) => (
-          <div key={index} style={alertItem}>
-            {alert}
-          </div>
-        ))
-      )}
-    </div>
-  )
 }
 
-/* ------------------ Styles ------------------ */
+loadThreshold()
 
-const cardStyle = {
-  backgroundColor: "#1e293b",
-  color: "white",
-  padding: "25px",
-  borderRadius: "12px",
-  width: "260px",
-  boxShadow: "0 10px 25px rgba(0,0,0,0.2)"
+},[])
+
+
+
+useEffect(()=>{
+
+const fetchMetrics=async()=>{
+
+try{
+
+const res=await fetch("http://127.0.0.1:8000/status")
+const data=await res.json()
+
+const newData={
+time:new Date().toLocaleTimeString(),
+cpu:clamp(data.cpu),
+ram:clamp(data.memory),
+disk:clamp(data.disk),
+network:clamp(data.network)
 }
 
-const progressBackground = {
-  width: "100%",
-  height: "8px",
-  backgroundColor: "#334155",
-  borderRadius: "10px",
-  overflow: "hidden"
+setMetrics(newData)
+setProcesses(data.processes || [])
+
+setHistory(prev=>{
+const updated=[...prev,newData]
+if(updated.length>10) updated.shift()
+return updated
+})
+
+const alerts=[]
+
+if(newData.cpu>=cpuThreshold){
+alerts.push("CPU threshold exceeded")
 }
 
-const progressFill = {
-  height: "100%",
-  transition: "width 0.5s ease"
+if(newData.ram>=85){
+alerts.push("RAM usage high")
 }
 
-const chartContainer = {
-  backgroundColor: "#1e293b",
-  padding: "25px",
-  borderRadius: "12px",
-  boxShadow: "0 10px 25px rgba(0,0,0,0.2)",
-  color: "white"
+if(newData.disk>=90){
+alerts.push("Disk almost full")
 }
 
-const alertContainer = {
-  backgroundColor: "#1e293b",
-  padding: "25px",
-  borderRadius: "12px",
-  boxShadow: "0 10px 25px rgba(0,0,0,0.2)",
-  color: "white"
+if(alerts.length===0){
+alerts.push("System Running Normally")
 }
 
-const alertItem = {
-  backgroundColor: "#334155",
-  padding: "10px",
-  borderRadius: "8px",
-  marginBottom: "10px",
-  fontSize: "14px"
+setNotifications(alerts)
+
+}catch(e){
+console.log(e)
+}
+
+}
+
+fetchMetrics()
+
+const interval=setInterval(fetchMetrics,2000)
+
+return()=>clearInterval(interval)
+
+},[cpuThreshold])
+
+
+
+const updateThreshold=async(v)=>{
+
+setCpuThreshold(v)
+
+try{
+
+await fetch("http://127.0.0.1:8000/set-cpu-threshold",{
+method:"POST",
+headers:{ "Content-Type":"application/json" },
+body:JSON.stringify({cpu:v})
+})
+
+}catch(e){
+console.log(e)
+}
+
+}
+
+
+
+const cardColor=v=>{
+if(v>=cpuThreshold) return "#ef4444"
+if(v>=cpuThreshold-20) return "#facc15"
+return "#22c55e"
+}
+
+
+
+return(
+
+<div style={styles.page}>
+
+
+<div style={styles.notificationBar}>
+{notifications.join("  |  ")}
+</div>
+
+
+
+<div style={styles.header}>
+
+<h1 style={styles.title}>
+System Monitoring Dashboard
+</h1>
+
+<div style={styles.thresholdBox}>
+CPU Threshold
+<input
+value={cpuThreshold}
+onChange={e=>updateThreshold(Number(e.target.value))}
+style={styles.thresholdInput}
+/>
+</div>
+
+</div>
+
+
+
+<div style={styles.cards}>
+
+<Card
+title="CPU"
+value={metrics.cpu}
+color={cardColor(metrics.cpu)}
+dataKey="cpu"
+history={history}
+hover={hoverCard==="cpu"}
+onHover={()=>setHoverCard("cpu")}
+onLeave={()=>setHoverCard(null)}
+/>
+
+<Card
+title="RAM"
+value={metrics.ram}
+color={cardColor(metrics.ram)}
+dataKey="ram"
+history={history}
+hover={hoverCard==="ram"}
+onHover={()=>setHoverCard("ram")}
+onLeave={()=>setHoverCard(null)}
+/>
+
+<Card
+title="DISK"
+value={metrics.disk}
+color={cardColor(metrics.disk)}
+dataKey="disk"
+history={history}
+hover={hoverCard==="disk"}
+onHover={()=>setHoverCard("disk")}
+onLeave={()=>setHoverCard(null)}
+/>
+
+<Card
+title="NETWORK"
+value={metrics.network}
+color={cardColor(metrics.network)}
+dataKey="network"
+history={history}
+hover={hoverCard==="network"}
+onHover={()=>setHoverCard("network")}
+onLeave={()=>setHoverCard(null)}
+/>
+
+</div>
+
+
+
+<div style={styles.mainGrid}>
+
+
+<div style={styles.chartArea}>
+
+<div style={styles.chartTitle}>
+Live Usage Trend
+</div>
+
+<ResponsiveContainer width="100%" height="90%">
+
+<LineChart data={history}>
+
+<CartesianGrid stroke="#334155" strokeDasharray="4 4"/>
+
+<XAxis dataKey="time" stroke="#94a3b8"/>
+
+<YAxis domain={[0,100]} stroke="#94a3b8"/>
+
+<Tooltip/>
+
+<Legend/>
+
+<Line type="monotone" dataKey="cpu" stroke="#22c55e" strokeWidth={2} dot={{r:3}}/>
+
+<Line type="monotone" dataKey="ram" stroke="#f59e0b" strokeWidth={2} dot={{r:3}}/>
+
+<Line type="monotone" dataKey="disk" stroke="#ef4444" strokeWidth={2} dot={{r:3}}/>
+
+</LineChart>
+
+</ResponsiveContainer>
+
+</div>
+
+
+
+<div style={styles.processBox}>
+
+<h3 style={{marginBottom:"6px"}}>Running Processes</h3>
+
+{processes.map((p,i)=>(
+<div key={i} style={styles.processItem}>
+{p}
+</div>
+))}
+
+</div>
+
+</div>
+
+</div>
+
+)
+
+}
+
+
+
+function Card({title,value,color,dataKey,history,hover,onHover,onLeave}){
+
+return(
+
+<div
+style={{...styles.card,background:color}}
+onMouseEnter={onHover}
+onMouseLeave={onLeave}
+>
+
+{hover && (
+
+<div style={styles.previewChart}>
+
+<ResponsiveContainer width="100%" height={80}>
+
+<LineChart data={history}>
+
+<Line
+type="monotone"
+dataKey={dataKey}
+stroke="#ffffff"
+strokeWidth={2}
+dot={false}
+/>
+
+</LineChart>
+
+</ResponsiveContainer>
+
+</div>
+
+)}
+
+<div style={styles.cardTitle}>{title}</div>
+
+<div style={styles.cardValue}>
+{value.toFixed(1)}%
+</div>
+
+</div>
+
+)
+
+}
+
+
+
+const styles={
+
+page:{
+height:"100vh",
+background:"#0f172a",
+padding:"20px",
+display:"flex",
+flexDirection:"column",
+fontFamily:"Inter, sans-serif",
+color:"white",
+gap:"20px"
+},
+
+notificationBar:{
+background:"#1e293b",
+padding:"10px",
+borderRadius:"8px",
+textAlign:"center",
+fontWeight:"500"
+},
+
+header:{
+display:"flex",
+justifyContent:"center",
+alignItems:"center",
+position:"relative"
+},
+
+title:{
+fontSize:"36px",
+fontWeight:"bold"
+},
+
+thresholdBox:{
+position:"absolute",
+right:"0",
+display:"flex",
+gap:"8px",
+alignItems:"center"
+},
+
+thresholdInput:{
+width:"60px",
+padding:"6px",
+borderRadius:"6px",
+border:"2px solid #facc15",
+boxShadow:"0 0 8px #facc15",
+background:"#1e293b",
+color:"white"
+},
+
+cards:{
+display:"grid",
+gridTemplateColumns:"repeat(4,1fr)",
+gap:"20px"
+},
+
+card:{
+padding:"45px",
+borderRadius:"14px",
+textAlign:"center",
+boxShadow:"0 0 25px rgba(0,0,0,0.4)",
+position:"relative"
+},
+
+previewChart:{
+position:"absolute",
+top:"-90px",
+left:"0",
+width:"100%",
+background:"#020617",
+padding:"6px",
+borderRadius:"8px"
+},
+
+cardTitle:{
+fontSize:"16px"
+},
+
+cardValue:{
+fontSize:"34px",
+fontWeight:"bold"
+},
+
+mainGrid:{
+flex:1,
+display:"grid",
+gridTemplateColumns:"4fr 1fr",
+gap:"20px"
+},
+
+chartArea:{
+background:"#1e293b",
+borderRadius:"14px",
+padding:"15px",
+position:"relative"
+},
+
+chartTitle:{
+fontSize:"20px",
+marginBottom:"10px",
+textAlign:"center"
+},
+
+processBox:{
+background:"#1e293b",
+borderRadius:"12px",
+padding:"10px"
+},
+
+processItem:{
+fontSize:"13px"
+}
+
 }
 
 export default Dashboard

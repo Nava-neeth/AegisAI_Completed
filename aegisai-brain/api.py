@@ -23,7 +23,7 @@ decision_engine = DecisionEngine()
 # -----------------------------
 # Safety settings
 # -----------------------------
-SAFE_CPU_LEVEL = 60
+SAFE_CPU_LEVEL = 90
 
 SAFE_PROCESS_NAMES = [
     "system",

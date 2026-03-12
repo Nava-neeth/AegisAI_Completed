@@ -1,11 +1,14 @@
+
 import { BrowserRouter as Router, Routes, Route, Navigate } from "react-router-dom"
 import { useEffect, useState } from "react"
+
 import Sidebar from "./components/Sidebar"
 import Dashboard from "./pages/Dashboard"
 import Alerts from "./pages/Alerts"
 import System from "./pages/System"
 import Welcome from "./pages/Welcome"
 import NotificationBell from "./components/NotificationBell"
+
 import "./App.css"
 
 function App() {
@@ -29,25 +32,79 @@ function AppRoutes() {
   return (
     <Routes>
       <Route path="/" element={visited ? <Navigate to="/dashboard" /> : <Welcome />} />
-      <Route path="/dashboard" element={<MainLayout><Dashboard /></MainLayout>} />
-      <Route path="/alerts" element={<MainLayout><Alerts /></MainLayout>} />
-      <Route path="/system" element={<MainLayout><System /></MainLayout>} />
+
+      <Route
+        path="/dashboard"
+        element={
+          <MainLayout>
+            <Dashboard />
+          </MainLayout>
+        }
+      />
+
+      <Route
+        path="/alerts"
+        element={
+          <MainLayout>
+            <Alerts />
+          </MainLayout>
+        }
+      />
+
+      <Route
+        path="/system"
+        element={
+          <MainLayout>
+            <System />
+          </MainLayout>
+        }
+      />
     </Routes>
   )
 }
 
 function MainLayout({ children }) {
   return (
-    <div className="layout">
+    <div style={layoutStyle}>
+
       <Sidebar />
-      <NotificationBell />
-      <div className="content">
-        <div className="page-container">
+
+      <div style={contentStyle}>
+
+        <NotificationBell />
+
+        <div style={pageContainerStyle}>
           {children}
         </div>
+
       </div>
+
     </div>
   )
+}
+
+const layoutStyle = {
+  display: "flex",
+  width: "100vw",
+  height: "100vh",
+  overflow: "hidden",
+  background: "#0f172a"
+}
+
+const contentStyle = {
+  flex: 1,
+  display: "flex",
+  flexDirection: "column",
+  width: "100%",
+  height: "100%",
+  overflow: "auto"
+}
+
+const pageContainerStyle = {
+  width: "100%",
+  height: "100%",
+  padding: "30px",
+  boxSizing: "border-box"
 }
 
 export default App

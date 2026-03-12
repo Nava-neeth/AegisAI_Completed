@@ -258,3 +258,108 @@ body {
   from{transform:translateY(0);}
   to{transform:translateY(-1000px);}
 }
+/* ---------- PAGE OPEN ANIMATION ---------- */
+
+body {
+  margin: 0;
+  background: #0f172a;
+  font-family: Inter, sans-serif;
+  animation: dashboardFade 0.7s ease;
+}
+
+@keyframes dashboardFade {
+  from {
+    opacity: 0;
+    transform: scale(0.97);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+
+
+/* ---------- CARD LIFT + GLOW ---------- */
+
+.cards > div {
+  transition: transform 0.35s ease, box-shadow 0.35s ease;
+}
+
+.cards > div:hover {
+  transform: translateY(-12px) scale(1.04);
+  box-shadow:
+    0 20px 40px rgba(0,0,0,0.6),
+    0 0 18px rgba(0,255,200,0.25);
+}
+
+
+
+/* ---------- BUTTON EFFECT ---------- */
+
+.metricButtons button {
+  transition: transform 0.25s ease, box-shadow 0.25s ease;
+}
+
+.metricButtons button:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 8px 18px rgba(0,0,0,0.6);
+}
+
+.metricButtons button:active {
+  transform: scale(0.95);
+}
+
+
+
+/* ---------- THRESHOLD INPUT GLOW ---------- */
+
+.thresholdBox input {
+  transition: all 0.25s ease;
+}
+
+.thresholdBox input:focus {
+  outline: none;
+  transform: scale(1.05);
+  box-shadow:
+    0 0 10px #facc15,
+    0 0 20px rgba(250,204,21,0.5);
+}
+
+
+
+/* ---------- NOTIFICATION BAR DROP ---------- */
+
+.notificationBar {
+  animation: notificationDrop 0.6s ease;
+}
+
+@keyframes notificationDrop {
+  from {
+    opacity: 0;
+    transform: translateY(-30px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+
+
+/* ---------- CHART FADE ---------- */
+
+.recharts-wrapper {
+  animation: chartFade 0.8s ease;
+}
+
+@keyframes chartFade {
+  from {
+    opacity: 0;
+    transform: translateY(12px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
