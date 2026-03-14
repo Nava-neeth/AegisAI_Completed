@@ -1,365 +1,122 @@
-body {
-  margin: 0;
-  font-family: Arial, sans-serif;
-  background-color: #0f172a;
-}
+/* ---------- GLOBAL ---------- */
 
-.layout {
-  display: flex;
-  min-height: 100vh;
-}
-
-.sidebar {
-  width: 100px;
-  background: linear-gradient(180deg, #111827, #1f2937);
-  color: white;
-  padding: 30px 20px;
-  box-shadow: 4px 0 20px rgba(0,0,0,0.3);
-}
-
-.sidebar h2 {
-  margin-bottom: 40px;
-  font-size: 22px;
-}
-
-.sidebar a {
-  display: block;
-  margin-bottom: 18px;
-  color: #cbd5e1;
-  text-decoration: none;
-  font-size: 15px;
-  transition: all 0.2s ease;
-}
-
-.sidebar a:hover {
-  color: white;
-  transform: translateX(5px);
-}
-
-.content {
-  flex: 1;
-  padding: 40px;
-  background-color: #0f172a;
-}
-
-.page-container {
-  background-color: #111827;
-  padding: 40px;
-  border-radius: 16px;
-  box-shadow: 0 20px 40px rgba(0,0,0,0.4);
-  .page-container {
-  animation: fadeInPage 0.4s ease forwards;
-}
-
-@keyframes fadeInPage {
-  from {
-    opacity: 0;
-    transform: translateY(8px);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0);
-  }
-}
-}
-.sidebar a.active {
-  color: white;
-  position: relative;
-}
-
-.sidebar a.active::after {
-  content: "";
-  position: absolute;
-  left: -10px;
-  top: 0;
-  bottom: 0;
-  width: 4px;
-  background: #22c55e;
-  border-radius: 4px;
-  .card:hover {
-  transform: translateY(-3px);
-  transition: transform 0.2s ease;
-}
-}
-.status-healthy {
-  position: relative;
-  overflow: hidden;
-}
-
-.status-healthy::after {
-  content: "";
-  position: absolute;
-  inset: 0;
-  border-radius: 12px;
-  background: radial-gradient(circle, rgba(34,197,94,0.25) 0%, transparent 70%);
-  animation: pulseGlow 2.5s infinite ease-in-out;
-}
-
-@keyframes pulseGlow {
-  0% { opacity: 0.3; }
-  50% { opacity: 0.7; }
-  100% { opacity: 0.3; }
-}
-.chart-container {
-  position: relative;
-}
-
-.chart-container::before {
-  content: "";
-  position: absolute;
-  inset: 0;
-  border-radius: 16px;
-  background: linear-gradient(145deg, rgba(255,255,255,0.03), rgba(255,255,255,0));
-  pointer-events: none;
-}
-.toast {
-  position: fixed;
-  top: 20px;
-  right: 20px;
-  background: #1e293b;
-  color: white;
-  padding: 12px 20px;
-  border-radius: 10px;
-  box-shadow: 0 10px 25px rgba(0,0,0,0.4);
-  animation: slideIn 0.3s ease forwards;
-}
-
-@keyframes slideIn {
-  from { opacity: 0; transform: translateX(20px); }
-  to { opacity: 1; transform: translateX(0); }
-}
-.notification-bell {
-  position: fixed;
-  top: 20px;
-  right: 30px;
-  font-size: 22px;
-  cursor: pointer;
-  z-index: 1000;
-  transition: transform 0.2s ease;
-}
-
-.notification-bell:hover {
-  transform: scale(1.1);
-}
-
-.badge {
-  position: absolute;
-  top: -6px;
-  right: -10px;
-  background: #ef4444;
-  color: white;
-  font-size: 12px;
-  padding: 2px 6px;
-  border-radius: 50%;
-}
-.badge {
-  animation: pulseAlert 1.5s infinite;
-}
-
-@keyframes pulseAlert {
-  0% { box-shadow: 0 0 0 0 rgba(239,68,68,0.6); }
-  70% { box-shadow: 0 0 0 8px rgba(239,68,68,0); }
-  100% { box-shadow: 0 0 0 0 rgba(239,68,68,0); }
-}
-.alert-panel {
-  position: fixed;
-  top: 70px;
-  right: -320px;
-  width: 300px;
-  background: #1e293b;
-  border-radius: 12px;
-  padding: 20px;
-  box-shadow: 0 15px 40px rgba(0,0,0,0.5);
-  transition: right 0.3s ease;
-  z-index: 999;
-}
-
-.alert-panel.open {
-  right: 20px;
-}
-
-.alert-panel h4 {
-  margin-bottom: 15px;
-  font-size: 16px;
-}
-
-.alert-item {
-  background: #0f172a;
-  padding: 10px;
-  margin-bottom: 10px;
-  border-radius: 8px;
-  font-size: 14px;
-}
-@keyframes bellShake {
-  0% { transform: rotate(0deg) }
-  2% { transform: rotate(15deg) }
-  4% { transform: rotate(-15deg) }
-  6% { transform: rotate(10deg) }
-  8% { transform: rotate(-10deg) }
-  10% { transform: rotate(0deg) }
-  100% { transform: rotate(0deg) }
-}
-/* smooth transition */
-
-.nav-link {
-  transition: all 0.25s ease;
-}
-
-/* hover glow */
-
-.nav-link:hover {
-  box-shadow: 0 0 8px rgba(255,255,255,0.35);
-  border-radius: 6px;
-}
-
-/* active page glow */
-
-.nav-link.active {
-  box-shadow: 0 0 10px rgba(255,255,255,0.5);
-  border-radius: 6px;
-}
-.toast{
-  position: fixed;
-  bottom: 25px;
-  right: 25px;
-  background:#1e293b;
-  color:white;
-  padding:12px 18px;
-  border-radius:8px;
-  font-size:14px;
-  box-shadow:0 10px 30px rgba(0,0,0,0.35);
-  animation:toastFade 0.3s ease;
-  z-index:9999;
-}
-
-@keyframes toastFade{
-  from{
-    opacity:0;
-    transform:translateY(10px);
-  }
-  to{
-    opacity:1;
-    transform:translateY(0);
-  }
-}
-@keyframes gradientMove {
-  0%{background-position:0% 50%;}
-  50%{background-position:100% 50%;}
-  100%{background-position:0% 50%;}
-}
-
-@keyframes titleFloat {
-  0%{transform:translateY(0px);}
-  50%{transform:translateY(-6px);}
-  100%{transform:translateY(0px);}
-}
-
-@keyframes particlesMove {
-  from{transform:translateY(0);}
-  to{transform:translateY(-1000px);}
-}
-/* ---------- PAGE OPEN ANIMATION ---------- */
-
-body {
-  margin: 0;
-  background: #0f172a;
-  font-family: Inter, sans-serif;
-  animation: dashboardFade 0.7s ease;
-}
-
-@keyframes dashboardFade {
-  from {
-    opacity: 0;
-    transform: scale(0.97);
-  }
-  to {
-    opacity: 1;
-    transform: scale(1);
-  }
+body{
+margin:0;
+background:#0f172a;
+font-family:Inter, Arial, sans-serif;
+color:white;
+overflow-x:hidden;
 }
 
 
 
-/* ---------- CARD LIFT + GLOW ---------- */
+/* ---------- PAGE OPENING EFFECT ---------- */
 
-.cards > div {
-  transition: transform 0.35s ease, box-shadow 0.35s ease;
+body{
+animation:pageOpen .6s ease;
 }
 
-.cards > div:hover {
-  transform: translateY(-12px) scale(1.04);
-  box-shadow:
-    0 20px 40px rgba(0,0,0,0.6),
-    0 0 18px rgba(0,255,200,0.25);
+@keyframes pageOpen{
+0%{
+opacity:0;
+transform:translateY(20px);
 }
-
-
-
-/* ---------- BUTTON EFFECT ---------- */
-
-.metricButtons button {
-  transition: transform 0.25s ease, box-shadow 0.25s ease;
+100%{
+opacity:1;
+transform:translateY(0);
 }
-
-.metricButtons button:hover {
-  transform: translateY(-4px);
-  box-shadow: 0 8px 18px rgba(0,0,0,0.6);
-}
-
-.metricButtons button:active {
-  transform: scale(0.95);
 }
 
 
 
-/* ---------- THRESHOLD INPUT GLOW ---------- */
+/* ---------- TITLE ANIMATION ---------- */
 
-.thresholdBox input {
-  transition: all 0.25s ease;
+h1{
+animation:titleAppear .7s ease;
 }
 
-.thresholdBox input:focus {
-  outline: none;
-  transform: scale(1.05);
-  box-shadow:
-    0 0 10px #facc15,
-    0 0 20px rgba(250,204,21,0.5);
+@keyframes titleAppear{
+0%{
+opacity:0;
+transform:translateY(-15px);
 }
-
-
-
-/* ---------- NOTIFICATION BAR DROP ---------- */
-
-.notificationBar {
-  animation: notificationDrop 0.6s ease;
+100%{
+opacity:1;
+transform:translateY(0);
 }
-
-@keyframes notificationDrop {
-  from {
-    opacity: 0;
-    transform: translateY(-30px);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0);
-  }
 }
 
 
 
-/* ---------- CHART FADE ---------- */
+/* ---------- DASHBOARD CARD EFFECT ---------- */
 
-.recharts-wrapper {
-  animation: chartFade 0.8s ease;
+.cards > div{
+transition:transform .25s ease, box-shadow .25s ease;
 }
 
-@keyframes chartFade {
-  from {
-    opacity: 0;
-    transform: translateY(12px);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0);
-  }
+.cards > div:hover{
+
+transform:translateY(-6px);
+
+box-shadow:
+0 15px 35px rgba(0,0,0,.6),
+0 0 12px rgba(255,255,255,.18);
+
+}
+
+
+
+/* ---------- ALERT PAGE CARD EFFECT ---------- */
+
+.cardGrid > div{
+transition:transform .25s ease, box-shadow .25s ease;
+}
+
+.cardGrid > div:hover{
+
+transform:translateY(-6px);
+
+box-shadow:
+0 15px 35px rgba(0,0,0,.6),
+0 0 12px rgba(255,255,255,.18);
+
+}
+
+
+
+/* ---------- SYSTEM PAGE CARD EFFECT ---------- */
+
+.middleGrid > div,
+.anomalyCard{
+transition:transform .25s ease, box-shadow .25s ease;
+}
+
+.middleGrid > div:hover,
+.anomalyCard:hover{
+
+transform:translateY(-6px);
+
+box-shadow:
+0 15px 35px rgba(0,0,0,.6),
+0 0 12px rgba(255,255,255,.18);
+
+}
+
+
+
+/* ---------- TOAST SMOOTH ---------- */
+
+.toastContainer{
+animation:toastAppear .5s ease;
+}
+
+@keyframes toastAppear{
+0%{
+opacity:0;
+transform:translateX(50px);
+}
+100%{
+opacity:1;
+transform:translateX(0);
+}
 }

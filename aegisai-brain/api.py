@@ -77,13 +77,6 @@ def get_status():
 
         current_time = time.time()
 
-        if cpu > 95:
-            send_email_alert(
-                 "AegisAI Alert",
-                 f"CPU usage is {cpu}%",
-                 "navaneethns5656@gmail.com"
-            )
-
         # -----------------------------
         # Self-healing automation
         # -----------------------------

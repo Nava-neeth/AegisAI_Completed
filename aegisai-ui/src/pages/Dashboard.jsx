@@ -12,6 +12,8 @@ Legend
 
 function Dashboard(){
 
+const [selectedMetric,setSelectedMetric]=useState(null)
+
 const [metrics,setMetrics]=useState({
 cpu:0,
 ram:0,
@@ -111,6 +113,29 @@ return()=>clearInterval(interval)
 
 },[cpuThreshold])
 
+// ADD THIS NEW BLOCK HERE
+useEffect(()=>{
+
+const style=document.createElement("style")
+
+style.innerHTML=`
+@keyframes slideNotification{
+0%{
+transform:translateX(0);
+}
+60%{
+transform:translateX(-45vw);
+}
+100%{
+transform:translateX(-45vw);
+}
+}
+`
+
+document.head.appendChild(style)
+
+},[])
+
 
 
 const updateThreshold=async(v)=>{
@@ -146,16 +171,22 @@ return(
 <div style={styles.page}>
 
 
-<div style={styles.notificationBar}>
-{notifications.join("  |  ")}
+{notifications.map((msg,i)=>(
+<div key={i} style={styles.toastContainer}>
+  <div style={styles.fireTrail}></div>
+
+  <div style={styles.cloudBubble}>
+    ⚠️ {msg}
+  </div>
 </div>
+))}
 
 
 
 <div style={styles.header}>
 
 <h1 style={styles.title}>
-System Monitoring Dashboard
+ Defense Intelligence Dashboard
 </h1>
 
 <div style={styles.thresholdBox}>
@@ -182,6 +213,7 @@ history={history}
 hover={hoverCard==="cpu"}
 onHover={()=>setHoverCard("cpu")}
 onLeave={()=>setHoverCard(null)}
+onClick={()=>setSelectedMetric("cpu")}
 />
 
 <Card
@@ -193,6 +225,7 @@ history={history}
 hover={hoverCard==="ram"}
 onHover={()=>setHoverCard("ram")}
 onLeave={()=>setHoverCard(null)}
+onClick={()=>setSelectedMetric("ram")}
 />
 
 <Card
@@ -204,6 +237,7 @@ history={history}
 hover={hoverCard==="disk"}
 onHover={()=>setHoverCard("disk")}
 onLeave={()=>setHoverCard(null)}
+onClick={()=>setSelectedMetric("disk")}
 />
 
 <Card
@@ -215,6 +249,7 @@ history={history}
 hover={hoverCard==="network"}
 onHover={()=>setHoverCard("network")}
 onLeave={()=>setHoverCard(null)}
+onClick={()=>setSelectedMetric("network")}
 />
 
 </div>
@@ -230,6 +265,13 @@ onLeave={()=>setHoverCard(null)}
 Live Usage Trend
 </div>
 
+<button
+style={styles.resetButton}
+onClick={()=>setSelectedMetric(null)}
+>
+Show All Metrics
+</button>
+
 <ResponsiveContainer width="100%" height="90%">
 
 <LineChart data={history}>
@@ -244,11 +286,21 @@ Live Usage Trend
 
 <Legend/>
 
+{selectedMetric === null ? (
+<>
 <Line type="monotone" dataKey="cpu" stroke="#22c55e" strokeWidth={2} dot={{r:3}}/>
-
 <Line type="monotone" dataKey="ram" stroke="#f59e0b" strokeWidth={2} dot={{r:3}}/>
-
 <Line type="monotone" dataKey="disk" stroke="#ef4444" strokeWidth={2} dot={{r:3}}/>
+</>
+) : (
+<Line
+type="monotone"
+dataKey={selectedMetric}
+stroke="#22c55e"
+strokeWidth={1}
+dot={{r:2}}
+/>
+)}
 
 </LineChart>
 
@@ -280,7 +332,7 @@ Live Usage Trend
 
 
 
-function Card({title,value,color,dataKey,history,hover,onHover,onLeave}){
+function Card({title,value,color,dataKey,history,hover,onHover,onLeave,onClick}){
 
 return(
 
@@ -288,30 +340,13 @@ return(
 style={{...styles.card,background:color}}
 onMouseEnter={onHover}
 onMouseLeave={onLeave}
+onClick={onClick}
 >
 
 {hover && (
-
-<div style={styles.previewChart}>
-
-<ResponsiveContainer width="100%" height={80}>
-
-<LineChart data={history}>
-
-<Line
-type="monotone"
-dataKey={dataKey}
-stroke="#ffffff"
-strokeWidth={2}
-dot={false}
-/>
-
-</LineChart>
-
-</ResponsiveContainer>
-
+<div style={styles.hoverMessage}>
+Click to view {title} usage graph
 </div>
-
 )}
 
 <div style={styles.cardTitle}>{title}</div>
@@ -342,12 +377,21 @@ gap:"20px"
 },
 
 notificationBar:{
-background:"#1e293b",
-padding:"10px",
-borderRadius:"8px",
-textAlign:"center",
-fontWeight:"500"
+display:"flex",
+flexDirection:"column",
+gap:"8px"
 },
+
+notificationItem:{
+background:"#1e293b",
+padding:"8px 12px",
+borderRadius:"8px",
+fontWeight:"500",
+borderLeft:"4px solid #ef4444",
+boxShadow:"0 0 10px rgba(0,0,0,0.4)"
+},
+
+
 
 header:{
 display:"flex",
@@ -403,6 +447,23 @@ padding:"6px",
 borderRadius:"8px"
 },
 
+hoverMessage:{
+position:"absolute",
+top:"-70px",
+left:"50%",
+transform:"translateX(-50%)",
+background:"#020617",
+padding:"10px 14px",
+borderRadius:"8px",
+fontSize:"12px",
+textAlign:"center",
+border:"1px solid #22c55e",
+boxShadow:"0 0 12px rgba(34,197,94,0.6)",
+color:"#22c55e",
+whiteSpace:"nowrap",
+animation:"fadeIn 0.3s ease"
+},
+
 cardTitle:{
 fontSize:"16px"
 },
@@ -432,6 +493,18 @@ marginBottom:"10px",
 textAlign:"center"
 },
 
+resetButton:{
+position:"absolute",
+right:"20px",
+top:"20px",
+background:"#334155",
+color:"white",
+border:"none",
+padding:"6px 12px",
+borderRadius:"6px",
+cursor:"pointer"
+},
+
 processBox:{
 background:"#1e293b",
 borderRadius:"12px",
@@ -440,6 +513,28 @@ padding:"10px"
 
 processItem:{
 fontSize:"13px"
+},
+
+toastContainer:{
+position:"fixed",
+top:"75px",
+right:"380px",
+display:"flex",
+alignItems:"center",
+animation:"slideNotification 0.9s ease forwards",
+zIndex:1000
+},
+
+
+cloudBubble:{
+background:"#e2e8f0",
+color:"#020617",
+padding:"12px 18px",
+borderRadius:"25px",
+fontWeight:"600",
+marginLeft:"10px",
+boxShadow:"0 0 20px rgba(0,0,0,0.4)",
+fontSize:"14px"
 }
 
 }
