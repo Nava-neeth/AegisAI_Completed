@@ -16,13 +16,6 @@ network:"NORMAL"
 
 const [notifications,setNotifications]=useState([])
 
-const [lastStatus,setLastStatus]=useState({
-cpu:"NORMAL",
-ram:"NORMAL",
-network:"NORMAL"
-})
-
-
 useEffect(()=>{
 
 const fetchStatus=async()=>{
@@ -59,56 +52,30 @@ ram:ramStatus,
 network:netStatus
 })
 
-let alerts=[]
+/* ✅ FIXED ALERT LOGIC (REAL-TIME ONLY) */
 
-if(cpuStatus!==lastStatus.cpu){
+let alerts=[]
 
 if(cpuStatus==="CRITICAL")
 alerts.push("CPU critical load detected")
-
 else if(cpuStatus==="WARNING")
 alerts.push("CPU usage warning")
 
-else
-alerts.push("CPU running normally")
-
-}
-
-if(ramStatus!==lastStatus.ram){
-
 if(ramStatus==="CRITICAL")
 alerts.push("RAM critical usage detected")
-
 else if(ramStatus==="WARNING")
 alerts.push("RAM usage warning")
 
-else
-alerts.push("RAM running normally")
-
-}
-
-if(netStatus!==lastStatus.network){
-
 if(netStatus==="CRITICAL")
 alerts.push("Network critical traffic detected")
-
 else if(netStatus==="WARNING")
 alerts.push("Network usage warning")
 
-else
-alerts.push("Network running normally")
-
+if(alerts.length===0){
+alerts.push("System running normally")
 }
 
-if(alerts.length>0){
 setNotifications(alerts)
-}
-
-setLastStatus({
-cpu:cpuStatus,
-ram:ramStatus,
-network:netStatus
-})
 
 }catch(e){
 console.log(e)
@@ -122,13 +89,17 @@ const interval=setInterval(fetchStatus,2000)
 
 return ()=>clearInterval(interval)
 
-},[lastStatus])
+},[])
 
 
 
 useEffect(()=>{
 
+if(document.getElementById("notifyStyle")) return
+
 const style=document.createElement("style")
+
+style.id="notifyStyle"
 
 style.innerHTML=`
 @keyframes slideNotification{
@@ -169,18 +140,15 @@ return(
 {notifications.map((msg,i)=>(
 <div key={i} style={styles.toastContainer}>
   <div style={styles.fireTrail}></div>
-
   <div style={styles.cloudBubble}>
     ⚠️ {msg}
   </div>
 </div>
 ))}
 
-
 <h1 style={styles.title}>
 Autonomous Threat Detection
 </h1>
-
 
 <div style={styles.cardGrid}>
 
@@ -210,29 +178,20 @@ glow={getGlow(status.network)}
 
 </div>
 
-
-
 <div style={styles.bottomGrid}>
 
 <div style={styles.panel}>
-
 <h2>AI Anomaly Detection</h2>
-
 <div style={{marginTop:"10px",color:"#22c55e"}}>
 No anomaly detected
 </div>
-
 </div>
 
-
 <div style={styles.panel}>
-
 <h2>Automated Response</h2>
-
 <div style={{marginTop:"10px"}}>
 Monitoring system stable
 </div>
-
 </div>
 
 </div>
@@ -338,13 +297,19 @@ boxShadow:"0 0 20px rgba(0,0,0,0.6)"
 toastContainer:{
 position:"fixed",
 top:"75px",
-right:"380px",
+right:"120px",
 display:"flex",
 alignItems:"center",
 animation:"slideNotification 0.9s ease forwards",
 zIndex:1000
 },
-
+fireTrail:{
+width:"60px",
+height:"6px",
+background:"linear-gradient(90deg,#f97316,#ef4444,#facc15)",
+borderRadius:"4px",
+boxShadow:"0 0 20px #f96516"
+},
 cloudBubble:{
 background:"#e2e8f0",
 color:"#020617",

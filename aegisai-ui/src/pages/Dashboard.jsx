@@ -23,35 +23,10 @@ network:0
 
 const [history,setHistory]=useState([])
 const [processes,setProcesses]=useState([])
-const [cpuThreshold,setCpuThreshold]=useState(90)
 const [notifications,setNotifications]=useState([])
 const [hoverCard,setHoverCard]=useState(null)
 
 const clamp=v=>Math.max(0,Math.min(100,Number(v)||0))
-
-useEffect(()=>{
-
-const loadThreshold=async()=>{
-
-try{
-const res=await fetch("http://127.0.0.1:8000/get-cpu-threshold")
-const data=await res.json()
-
-if(data.cpu){
-setCpuThreshold(data.cpu)
-}
-
-}catch(e){
-console.log(e)
-}
-
-}
-
-loadThreshold()
-
-},[])
-
-
 
 useEffect(()=>{
 
@@ -71,7 +46,12 @@ network:clamp(data.network)
 }
 
 setMetrics(newData)
-setProcesses(data.processes || [])
+
+setProcesses(
+(data.processes || []).map(p =>
+typeof p === "string" ? p : p.name || JSON.stringify(p)
+)
+)
 
 setHistory(prev=>{
 const updated=[...prev,newData]
@@ -81,8 +61,8 @@ return updated
 
 const alerts=[]
 
-if(newData.cpu>=cpuThreshold){
-alerts.push("CPU threshold exceeded")
+if(newData.cpu>=90){
+alerts.push("CPU usage high")
 }
 
 if(newData.ram>=85){
@@ -107,28 +87,25 @@ console.log(e)
 
 fetchMetrics()
 
-const interval=setInterval(fetchMetrics,2000)
+const interval=setInterval(fetchMetrics,1500)
 
 return()=>clearInterval(interval)
 
-},[cpuThreshold])
+},[])
 
-// ADD THIS NEW BLOCK HERE
+
+
 useEffect(()=>{
 
+if(document.getElementById("notifyStyle")) return
+
 const style=document.createElement("style")
+style.id="notifyStyle"
 
 style.innerHTML=`
 @keyframes slideNotification{
-0%{
-transform:translateX(0);
-}
-60%{
-transform:translateX(-45vw);
-}
-100%{
-transform:translateX(-45vw);
-}
+0%{transform:translateX(120px);opacity:0;}
+100%{transform:translateX(0);opacity:1;}
 }
 `
 
@@ -138,29 +115,9 @@ document.head.appendChild(style)
 
 
 
-const updateThreshold=async(v)=>{
-
-setCpuThreshold(v)
-
-try{
-
-await fetch("http://127.0.0.1:8000/set-cpu-threshold",{
-method:"POST",
-headers:{ "Content-Type":"application/json" },
-body:JSON.stringify({cpu:v})
-})
-
-}catch(e){
-console.log(e)
-}
-
-}
-
-
-
 const cardColor=v=>{
-if(v>=cpuThreshold) return "#ef4444"
-if(v>=cpuThreshold-20) return "#facc15"
+if(v>=90) return "#ef4444"
+if(v>=70) return "#facc15"
 return "#22c55e"
 }
 
@@ -173,11 +130,13 @@ return(
 
 {notifications.map((msg,i)=>(
 <div key={i} style={styles.toastContainer}>
-  <div style={styles.fireTrail}></div>
 
-  <div style={styles.cloudBubble}>
-    ⚠️ {msg}
-  </div>
+<div style={styles.fireTrail}></div>
+
+<div style={styles.cloudBubble}>
+⚠️ {msg}
+</div>
+
 </div>
 ))}
 
@@ -186,17 +145,8 @@ return(
 <div style={styles.header}>
 
 <h1 style={styles.title}>
- Defense Intelligence Dashboard
+Defense Intelligence Dashboard
 </h1>
-
-<div style={styles.thresholdBox}>
-CPU Threshold
-<input
-value={cpuThreshold}
-onChange={e=>updateThreshold(Number(e.target.value))}
-style={styles.thresholdInput}
-/>
-</div>
 
 </div>
 
@@ -208,8 +158,6 @@ style={styles.thresholdInput}
 title="CPU"
 value={metrics.cpu}
 color={cardColor(metrics.cpu)}
-dataKey="cpu"
-history={history}
 hover={hoverCard==="cpu"}
 onHover={()=>setHoverCard("cpu")}
 onLeave={()=>setHoverCard(null)}
@@ -220,8 +168,6 @@ onClick={()=>setSelectedMetric("cpu")}
 title="RAM"
 value={metrics.ram}
 color={cardColor(metrics.ram)}
-dataKey="ram"
-history={history}
 hover={hoverCard==="ram"}
 onHover={()=>setHoverCard("ram")}
 onLeave={()=>setHoverCard(null)}
@@ -232,8 +178,6 @@ onClick={()=>setSelectedMetric("ram")}
 title="DISK"
 value={metrics.disk}
 color={cardColor(metrics.disk)}
-dataKey="disk"
-history={history}
 hover={hoverCard==="disk"}
 onHover={()=>setHoverCard("disk")}
 onLeave={()=>setHoverCard(null)}
@@ -244,8 +188,6 @@ onClick={()=>setSelectedMetric("disk")}
 title="NETWORK"
 value={metrics.network}
 color={cardColor(metrics.network)}
-dataKey="network"
-history={history}
 hover={hoverCard==="network"}
 onHover={()=>setHoverCard("network")}
 onLeave={()=>setHoverCard(null)}
@@ -288,9 +230,9 @@ Show All Metrics
 
 {selectedMetric === null ? (
 <>
-<Line type="monotone" dataKey="cpu" stroke="#22c55e" strokeWidth={2} dot={{r:3}}/>
-<Line type="monotone" dataKey="ram" stroke="#f59e0b" strokeWidth={2} dot={{r:3}}/>
-<Line type="monotone" dataKey="disk" stroke="#ef4444" strokeWidth={2} dot={{r:3}}/>
+<Line type="monotone" dataKey="cpu" stroke="#22c55e" strokeWidth={1} dot={{r:2}}/>
+<Line type="monotone" dataKey="ram" stroke="#f59e0b" strokeWidth={1} dot={{r:2}}/>
+<Line type="monotone" dataKey="disk" stroke="#ef4444" strokeWidth={1} dot={{r:2}}/>
 </>
 ) : (
 <Line
@@ -332,7 +274,7 @@ dot={{r:2}}
 
 
 
-function Card({title,value,color,dataKey,history,hover,onHover,onLeave,onClick}){
+function Card({title,value,color,hover,onHover,onLeave,onClick}){
 
 return(
 
@@ -376,51 +318,15 @@ color:"white",
 gap:"20px"
 },
 
-notificationBar:{
-display:"flex",
-flexDirection:"column",
-gap:"8px"
-},
-
-notificationItem:{
-background:"#1e293b",
-padding:"8px 12px",
-borderRadius:"8px",
-fontWeight:"500",
-borderLeft:"4px solid #ef4444",
-boxShadow:"0 0 10px rgba(0,0,0,0.4)"
-},
-
-
-
 header:{
 display:"flex",
 justifyContent:"center",
-alignItems:"center",
-position:"relative"
+alignItems:"center"
 },
 
 title:{
 fontSize:"36px",
 fontWeight:"bold"
-},
-
-thresholdBox:{
-position:"absolute",
-right:"0",
-display:"flex",
-gap:"8px",
-alignItems:"center"
-},
-
-thresholdInput:{
-width:"60px",
-padding:"6px",
-borderRadius:"6px",
-border:"2px solid #facc15",
-boxShadow:"0 0 8px #facc15",
-background:"#1e293b",
-color:"white"
 },
 
 cards:{
@@ -437,16 +343,6 @@ boxShadow:"0 0 25px rgba(0,0,0,0.4)",
 position:"relative"
 },
 
-previewChart:{
-position:"absolute",
-top:"-90px",
-left:"0",
-width:"100%",
-background:"#020617",
-padding:"6px",
-borderRadius:"8px"
-},
-
 hoverMessage:{
 position:"absolute",
 top:"-70px",
@@ -456,22 +352,12 @@ background:"#020617",
 padding:"10px 14px",
 borderRadius:"8px",
 fontSize:"12px",
-textAlign:"center",
 border:"1px solid #22c55e",
-boxShadow:"0 0 12px rgba(34,197,94,0.6)",
-color:"#22c55e",
-whiteSpace:"nowrap",
-animation:"fadeIn 0.3s ease"
+color:"#22c55e"
 },
 
-cardTitle:{
-fontSize:"16px"
-},
-
-cardValue:{
-fontSize:"34px",
-fontWeight:"bold"
-},
+cardTitle:{fontSize:"16px"},
+cardValue:{fontSize:"34px",fontWeight:"bold"},
 
 mainGrid:{
 flex:1,
@@ -501,8 +387,7 @@ background:"#334155",
 color:"white",
 border:"none",
 padding:"6px 12px",
-borderRadius:"6px",
-cursor:"pointer"
+borderRadius:"6px"
 },
 
 processBox:{
@@ -518,13 +403,19 @@ fontSize:"13px"
 toastContainer:{
 position:"fixed",
 top:"75px",
-right:"380px",
+left:"1150px",
 display:"flex",
 alignItems:"center",
-animation:"slideNotification 0.9s ease forwards",
+animation:"slideNotification 0.6s ease forwards",
 zIndex:1000
 },
 
+fireTrail:{
+width:"60px",
+height:"6px",
+background:"linear-gradient(90deg,#f97316,#ef4444,#facc15)",
+borderRadius:"4px"
+},
 
 cloudBubble:{
 background:"#e2e8f0",
@@ -533,7 +424,6 @@ padding:"12px 18px",
 borderRadius:"25px",
 fontWeight:"600",
 marginLeft:"10px",
-boxShadow:"0 0 20px rgba(0,0,0,0.4)",
 fontSize:"14px"
 }
 

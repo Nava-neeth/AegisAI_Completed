@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react"
+import { useEffect, useState, useRef } from "react"
 
 function System(){
 
@@ -7,7 +7,8 @@ const [threatCount,setThreatCount]=useState(0)
 const [anomalyLevel,setAnomalyLevel]=useState("Low")
 const [notifications,setNotifications]=useState([])
 
-
+/* 🔥 FIX: useRef instead of state */
+const lastHealthRef = useRef("Healthy")
 
 useEffect(()=>{
 
@@ -16,60 +17,83 @@ const fetchSystem=async()=>{
 try{
 
 const res=await fetch("http://127.0.0.1:8000/status")
+if(!res.ok) return
+
 const data=await res.json()
 
-const cpu=data.cpu || 0
-const ram=data.memory || 0
+const cpu=data?.cpu || 0
+const ram=data?.memory || 0
 
-let alerts=[]
+let health="Healthy"
+let anomaly="Low"
 
 if(cpu>85 || ram>85){
-setSystemHealth("Critical")
-setAnomalyLevel("High")
-alerts.push("System under high load")
+health="Critical"
+anomaly="High"
 }
-
 else if(cpu>60 || ram>60){
-setSystemHealth("Warning")
-setAnomalyLevel("Medium")
-alerts.push("System load increasing")
+health="Warning"
+anomaly="Medium"
 }
 
-else{
-setSystemHealth("Healthy")
-setAnomalyLevel("Low")
-alerts.push("System operating normally")
+/* SET STATES */
+setSystemHealth(health)
+setAnomalyLevel(anomaly)
+
+/* 🔥 FIX: compare using ref (no duplicate triggers) */
+if(health !== lastHealthRef.current){
+
+let message = ""
+
+if(health==="Critical")
+message="System under high load"
+
+else if(health==="Warning")
+message="System load increasing"
+
+else
+message="System operating normally"
+
+/* 🔥 NO DUPLICATE NOTIFICATIONS */
+setNotifications(prev=>{
+if(prev[0] === message) return prev
+return [message, ...prev].slice(0,5)
+})
+
+lastHealthRef.current = health
 }
 
-setThreatCount(Math.floor(Math.random()*5))
-
-setNotifications(alerts)
+/* threat count */
+setThreatCount(prev=>{
+if(health==="Critical") return Math.min(prev+1,10)
+return prev
+})
 
 }catch(e){
-console.log(e)
+console.log("System fetch error:",e)
 }
 
 }
 
 fetchSystem()
-
-const interval=setInterval(fetchSystem,3000)
+const interval=setInterval(fetchSystem,2000)
 
 return ()=>clearInterval(interval)
 
 },[])
 
-
-
+/* animation loader */
 useEffect(()=>{
 
+if(document.getElementById("systemAnim")) return
+
 const style=document.createElement("style")
+style.id="systemAnim"
 
 style.innerHTML=`
 @keyframes slideNotification{
-0%{transform:translateX(0);}
-60%{transform:translateX(-45vw);}
-100%{transform:translateX(-45vw);}
+0%{transform:translateX(120px);opacity:0;}
+100%{transform:translateX(0);opacity:1;}
 }
 `
 
@@ -77,32 +101,26 @@ document.head.appendChild(style)
 
 },[])
 
-
-
+/* COLORS */
 const getHealthColor=()=>{
-
 if(systemHealth==="Critical") return "#ef4444"
 if(systemHealth==="Warning") return "#f59e0b"
 return "#22c55e"
-
 }
 
 const getAnomalyColor=()=>{
-
 if(anomalyLevel==="High") return "#ef4444"
 if(anomalyLevel==="Medium") return "#f59e0b"
 return "#22c55e"
-
 }
-
-
 
 return(
 
 <div style={styles.page}>
 
-
+{/* 🔥 NOTIFICATIONS */}
 {notifications.map((msg,i)=>(
+
 <div key={i} style={styles.toastContainer}>
   <div style={styles.fireTrail}></div>
 
@@ -112,22 +130,16 @@ return(
 </div>
 ))}
 
-
-
 <h1 style={styles.title}>
- Defense Control System
+Defense Control System
 </h1>
 
-
-
 <div style={styles.middleGrid}>
-
 
 <div style={{
 ...styles.card,
 borderColor:getHealthColor()
 }}>
-
 <h2>System Health</h2>
 
 <div style={{
@@ -139,10 +151,7 @@ color:getHealthColor()
 
 </div>
 
-
-
 <div style={styles.card}>
-
 <h2>Threat Occurrence</h2>
 
 <div style={styles.bigValue}>
@@ -151,10 +160,7 @@ color:getHealthColor()
 
 </div>
 
-
 </div>
-
-
 
 <div style={{
 ...styles.card,
@@ -173,15 +179,9 @@ color:getAnomalyColor()
 
 </div>
 
-
-
 </div>
-
 )
-
 }
-
-
 
 const styles={
 
@@ -227,14 +227,23 @@ anomalyCard:{
 marginTop:"10px"
 },
 
+/* 🔥 NOTIFICATION STYLE */
 toastContainer:{
 position:"fixed",
 top:"75px",
-right:"380px",
+right:"120px",
 display:"flex",
 alignItems:"center",
-animation:"slideNotification 0.9s ease forwards",
+animation:"slideNotification 0.6s ease forwards",
 zIndex:1000
+},
+
+fireTrail:{
+width:"60px",
+height:"6px",
+background:"linear-gradient(90deg,#f97316,#ef4444,#facc15)",
+borderRadius:"4px",
+boxShadow:"0 0 20px #f96516"
 },
 
 cloudBubble:{

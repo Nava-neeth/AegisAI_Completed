@@ -5,47 +5,46 @@ import os
 import time
 import win32gui
 import win32process
+import smtplib
+from email.mime.text import MIMEText
 
-from automation.actions import Actions
-from logic.failure_predictor import FailurePredictor
-from logic.decision_engine import DecisionEngine
-
-
-app = FastAPI(title="AegisAI Brain API")
+app = FastAPI()
 
 # -----------------------------
-# Initialize modules
+# SETTINGS
 # -----------------------------
-actions = Actions()
-predictor = FailurePredictor()
-decision_engine = DecisionEngine()
+CPU_THRESHOLD = 90
+RAM_THRESHOLD = 90
 
-# -----------------------------
-# Safety settings
-# -----------------------------
-SAFE_CPU_LEVEL = 90
+SCAN_INTERVAL = 2
+ACTION_COOLDOWN = 1
+
+EMAIL_THRESHOLD = 70
+
+EMAIL_SENDER = "your_email@gmail.com"
+EMAIL_PASSWORD = "your_app_password"
+EMAIL_RECEIVER = "your_email@gmail.com"
 
 SAFE_PROCESS_NAMES = [
-    "system",
-    "system idle process",
-    "services.exe",
-    "wininit.exe",
-    "lsass.exe",
-    "csrss.exe",
-    "smss.exe",
-    "explorer.exe",
-    "python.exe",
-    "uvicorn.exe"
+    "system","system idle process","services.exe","wininit.exe",
+    "lsass.exe","csrss.exe","smss.exe","explorer.exe",
+    "python.exe","uvicorn.exe","code.exe",
+    "chrome.exe","msedge.exe",
+    "dwm.exe","memcompression",
+    "shellexperiencehost.exe","msmpeng.exe"
 ]
 
 CURRENT_PID = os.getpid()
 
-LAST_ACTION_TIME = 0
-ACTION_COOLDOWN = 10
+LAST_SCAN = 0
+LAST_ACTION = 0
+LAST_EMAIL_TIME = 0
+LAST_NOTIFICATION = "System Running Normally"
 
+LAST_NET = psutil.net_io_counters()
 
 # -----------------------------
-# CORS (for React frontend)
+# CORS
 # -----------------------------
 app.add_middleware(
     CORSMiddleware,
@@ -55,126 +54,152 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-
 # -----------------------------
-# API ENDPOINT
-# -----------------------------
-@app.get("/status")
-def get_status():
-
-    global LAST_ACTION_TIME
-
-    try:
-
-        cpu = psutil.cpu_percent(interval=0.5)
-        memory = psutil.virtual_memory().percent
-        disk = psutil.disk_usage("C:\\").percent
-        process_count = len(psutil.pids())
-
-        risk = predictor.calculate_risk(cpu, memory, disk, process_count)
-
-        decision = decision_engine.decide(False, risk)
-
-        current_time = time.time()
-
-        # -----------------------------
-        # Self-healing automation
-        # -----------------------------
-        if cpu >= SAFE_CPU_LEVEL:
-
-            if current_time - LAST_ACTION_TIME > ACTION_COOLDOWN:
-
-                if decision == "KILL_PROCESS":
-                    kill_memory_priority_process()
-                    LAST_ACTION_TIME = current_time
-
-        return {
-            "cpu": round(cpu, 1),
-            "memory": round(memory, 1),
-            "disk": round(disk, 1),
-            "process_count": process_count,
-            "risk": risk,
-            "decision": decision
-        }
-
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
-
-
-# -----------------------------
-# Detect active foreground app
+# FOREGROUND PROCESS PROTECTION
 # -----------------------------
 def get_foreground_pid():
-
     try:
         hwnd = win32gui.GetForegroundWindow()
         _, pid = win32process.GetWindowThreadProcessId(hwnd)
         return pid
-
     except:
         return None
 
+# -----------------------------
+# EMAIL ALERT
+# -----------------------------
+def send_email_alert(message):
+    global LAST_EMAIL_TIME
+
+    if time.time() - LAST_EMAIL_TIME < 60:
+        return
+
+    try:
+        msg = MIMEText(message)
+        msg["Subject"] = "AegisAI Alert"
+        msg["From"] = EMAIL_SENDER
+        msg["To"] = EMAIL_RECEIVER
+
+        server = smtplib.SMTP("smtp.gmail.com", 587)
+        server.starttls()
+        server.login(EMAIL_SENDER, EMAIL_PASSWORD)
+        server.sendmail(EMAIL_SENDER, EMAIL_RECEIVER, msg.as_string())
+        server.quit()
+
+        LAST_EMAIL_TIME = time.time()
+
+    except:
+        pass
 
 # -----------------------------
-# Smart background process killer
+# CORE ENGINE (FULL LOGIC)
 # -----------------------------
-def kill_memory_priority_process():
+def scan_and_kill():
 
-    print("Searching for heavy background process...")
+    global LAST_NOTIFICATION
 
     active_pid = get_foreground_pid()
 
-    candidates = []
+    print("Scanning processes...")
 
-    for proc in psutil.process_iter(['pid', 'name']):
+    processes = list(psutil.process_iter(['pid','name']))
+    print(f"Processes scanned: {len(processes)}")
 
+    killed_any = False
+
+    for proc in processes:
         try:
-
             pid = proc.info['pid']
             name = proc.info['name']
 
             if not name:
                 continue
 
-            name_lower = name.lower()
+            name_l = name.lower()
 
-            # protect critical system processes
-            if pid in (0, 4):
-                continue
+            # PROTECTION
+            if pid in (0,4): continue
+            if pid == CURRENT_PID: continue
+            if pid == active_pid: continue
+            if name_l in SAFE_PROCESS_NAMES: continue
 
-            if pid == CURRENT_PID:
-                continue
-
-            if pid == active_pid:
-                continue
-
-            if name_lower in SAFE_PROCESS_NAMES:
-                continue
-
-            cpu = proc.cpu_percent(interval=0.2)
+            cpu = proc.cpu_percent(interval=0.05)
             mem = proc.memory_percent()
 
-            score = (mem * 3) + cpu
+            # 🔥 FINAL CONDITION (CPU + RAM BOTH INCLUDED)
+            if cpu >= CPU_THRESHOLD or mem >= RAM_THRESHOLD:
 
-            if mem > 1 or cpu > 5:
-                candidates.append((score, mem, cpu, proc))
+                print(f"Heavy process found: {name} CPU={cpu:.1f} RAM={mem:.1f}")
 
-        except (psutil.NoSuchProcess, psutil.AccessDenied):
+                proc.kill()
+
+                print(f"Process killed: {name}")
+
+                LAST_NOTIFICATION = f"Process killed: {name}"
+                killed_any = True
+
+        except:
             continue
 
-    if not candidates:
-        print("No suitable background process found")
-        return
+    if not killed_any:
+        print("No process exceeds threshold")
+        LAST_NOTIFICATION = "System Running Normally"
 
-    candidates.sort(reverse=True, key=lambda x: x[0])
+# -----------------------------
+# API
+# -----------------------------
+@app.get("/status")
+def status():
 
-    highest_score, mem, cpu, target = candidates[0]
-
-    print(f"Killing {target.pid} ({target.name()}) | MEM: {mem:.2f}% | CPU: {cpu:.2f}%")
+    global LAST_SCAN, LAST_ACTION, LAST_NET
 
     try:
-        target.kill()
-        print("Background process killed")
+
+        cpu = psutil.cpu_percent(interval=0.2)
+        memory = psutil.virtual_memory().percent
+        disk = psutil.disk_usage("C:\\").percent
+
+        # NETWORK (real-time)
+        net_now = psutil.net_io_counters()
+        network = (net_now.bytes_sent + net_now.bytes_recv -
+                   LAST_NET.bytes_sent - LAST_NET.bytes_recv) / (1024*1024)
+        LAST_NET = net_now
+
+        process_list = []
+        for p in psutil.process_iter(['name']):
+            try:
+                process_list.append(p.info['name'])
+            except:
+                continue
+
+        now = time.time()
+
+        # -----------------------------
+        # MAIN LOGIC
+        # -----------------------------
+        if cpu > CPU_THRESHOLD or memory > RAM_THRESHOLD:
+
+            if now - LAST_SCAN > SCAN_INTERVAL:
+                LAST_SCAN = now
+
+                if now - LAST_ACTION > ACTION_COOLDOWN:
+                    scan_and_kill()
+                    LAST_ACTION = now
+
+        # -----------------------------
+        # EMAIL ALERT
+        # -----------------------------
+        if cpu > EMAIL_THRESHOLD:
+            send_email_alert(f"High system load detected: CPU {cpu}%")
+
+        return {
+            "cpu": round(cpu,1),
+            "memory": round(memory,1),
+            "disk": round(disk,1),
+            "network": round(network,2),
+            "processes": process_list[:20],
+            "notification": LAST_NOTIFICATION
+        }
 
     except Exception as e:
-        print("Kill failed:", e)
+        raise HTTPException(status_code=500, detail=str(e))
