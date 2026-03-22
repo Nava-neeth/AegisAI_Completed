@@ -61,6 +61,10 @@ return updated
 
 const alerts=[]
 
+if(data.notification && data.notification !== "System Running Normally"){
+alerts.push(data.notification)
+}
+
 if(newData.cpu>=90){
 alerts.push("CPU usage high")
 }
@@ -77,7 +81,10 @@ if(alerts.length===0){
 alerts.push("System Running Normally")
 }
 
-setNotifications(alerts)
+setNotifications(prev=>{
+const same = JSON.stringify(prev) === JSON.stringify(alerts)
+return same ? prev : alerts
+})
 
 }catch(e){
 console.log(e)
@@ -97,15 +104,21 @@ return()=>clearInterval(interval)
 
 useEffect(()=>{
 
-if(document.getElementById("notifyStyle")) return
+if(document.getElementById("dashboardNotify")) return
 
 const style=document.createElement("style")
-style.id="notifyStyle"
+style.id="dashboardNotify"
 
 style.innerHTML=`
-@keyframes slideNotification{
-0%{transform:translateX(120px);opacity:0;}
-100%{transform:translateX(0);opacity:1;}
+@keyframes slideDashboard{
+0%{
+transform:translateX(120%);
+opacity:0;
+}
+100%{
+transform:translateX(0);
+opacity:1;
+}
 }
 `
 
@@ -128,71 +141,36 @@ return(
 <div style={styles.page}>
 
 
+{/* ✅ FIXED NOTIFICATION SYSTEM */}
+<div style={styles.toastContainer}>
 {notifications.map((msg,i)=>(
-<div key={i} style={styles.toastContainer}>
-
+<div key={i} style={styles.toastItem}>
 <div style={styles.fireTrail}></div>
-
 <div style={styles.cloudBubble}>
 ⚠️ {msg}
 </div>
-
 </div>
 ))}
-
+</div>
 
 
 <div style={styles.header}>
-
 <h1 style={styles.title}>
 Defense Intelligence Dashboard
 </h1>
-
 </div>
 
 
 
 <div style={styles.cards}>
 
-<Card
-title="CPU"
-value={metrics.cpu}
-color={cardColor(metrics.cpu)}
-hover={hoverCard==="cpu"}
-onHover={()=>setHoverCard("cpu")}
-onLeave={()=>setHoverCard(null)}
-onClick={()=>setSelectedMetric("cpu")}
-/>
+<Card title="CPU" value={metrics.cpu} color={cardColor(metrics.cpu)} hover={hoverCard==="cpu"} onHover={()=>setHoverCard("cpu")} onLeave={()=>setHoverCard(null)} onClick={()=>setSelectedMetric("cpu")}/>
 
-<Card
-title="RAM"
-value={metrics.ram}
-color={cardColor(metrics.ram)}
-hover={hoverCard==="ram"}
-onHover={()=>setHoverCard("ram")}
-onLeave={()=>setHoverCard(null)}
-onClick={()=>setSelectedMetric("ram")}
-/>
+<Card title="RAM" value={metrics.ram} color={cardColor(metrics.ram)} hover={hoverCard==="ram"} onHover={()=>setHoverCard("ram")} onLeave={()=>setHoverCard(null)} onClick={()=>setSelectedMetric("ram")}/>
 
-<Card
-title="DISK"
-value={metrics.disk}
-color={cardColor(metrics.disk)}
-hover={hoverCard==="disk"}
-onHover={()=>setHoverCard("disk")}
-onLeave={()=>setHoverCard(null)}
-onClick={()=>setSelectedMetric("disk")}
-/>
+<Card title="DISK" value={metrics.disk} color={cardColor(metrics.disk)} hover={hoverCard==="disk"} onHover={()=>setHoverCard("disk")} onLeave={()=>setHoverCard(null)} onClick={()=>setSelectedMetric("disk")}/>
 
-<Card
-title="NETWORK"
-value={metrics.network}
-color={cardColor(metrics.network)}
-hover={hoverCard==="network"}
-onHover={()=>setHoverCard("network")}
-onLeave={()=>setHoverCard(null)}
-onClick={()=>setSelectedMetric("network")}
-/>
+<Card title="NETWORK" value={metrics.network} color={cardColor(metrics.network)} hover={hoverCard==="network"} onHover={()=>setHoverCard("network")} onLeave={()=>setHoverCard(null)} onClick={()=>setSelectedMetric("network")}/>
 
 </div>
 
@@ -207,25 +185,17 @@ onClick={()=>setSelectedMetric("network")}
 Live Usage Trend
 </div>
 
-<button
-style={styles.resetButton}
-onClick={()=>setSelectedMetric(null)}
->
+<button style={styles.resetButton} onClick={()=>setSelectedMetric(null)}>
 Show All Metrics
 </button>
 
 <ResponsiveContainer width="100%" height="90%">
 
 <LineChart data={history}>
-
 <CartesianGrid stroke="#334155" strokeDasharray="4 4"/>
-
 <XAxis dataKey="time" stroke="#94a3b8"/>
-
 <YAxis domain={[0,100]} stroke="#94a3b8"/>
-
 <Tooltip/>
-
 <Legend/>
 
 {selectedMetric === null ? (
@@ -235,13 +205,7 @@ Show All Metrics
 <Line type="monotone" dataKey="disk" stroke="#ef4444" strokeWidth={1} dot={{r:2}}/>
 </>
 ) : (
-<Line
-type="monotone"
-dataKey={selectedMetric}
-stroke="#22c55e"
-strokeWidth={1}
-dot={{r:2}}
-/>
+<Line type="monotone" dataKey={selectedMetric} stroke="#22c55e" strokeWidth={1} dot={{r:2}}/>
 )}
 
 </LineChart>
@@ -254,13 +218,15 @@ dot={{r:2}}
 
 <div style={styles.processBox}>
 
-<h3 style={{marginBottom:"6px"}}>Running Processes</h3>
+<h3 style={{marginBottom:"6px", textAlign:"center"}}>Running Processes</h3>
 
+<div style={styles.processTable}>
 {processes.map((p,i)=>(
-<div key={i} style={styles.processItem}>
+<div key={i} style={styles.processRow}>
 {p}
 </div>
 ))}
+</div>
 
 </div>
 
@@ -277,13 +243,7 @@ dot={{r:2}}
 function Card({title,value,color,hover,onHover,onLeave,onClick}){
 
 return(
-
-<div
-style={{...styles.card,background:color}}
-onMouseEnter={onHover}
-onMouseLeave={onLeave}
-onClick={onClick}
->
+<div style={{...styles.card,background:color}} onMouseEnter={onHover} onMouseLeave={onLeave} onClick={onClick}>
 
 {hover && (
 <div style={styles.hoverMessage}>
@@ -298,7 +258,6 @@ Click to view {title} usage graph
 </div>
 
 </div>
-
 )
 
 }
@@ -396,18 +355,36 @@ borderRadius:"12px",
 padding:"10px"
 },
 
-processItem:{
-fontSize:"13px"
+processTable:{
+maxHeight:"300px",
+overflow:"hidden",
+marginTop:"5px",
+textAlign:"center"
 },
 
+processRow:{
+padding:"6px 4px",
+borderBottom:"1px solid #334155",
+fontSize:"13px",
+textAlign:"center"
+},
+
+/* ✅ FINAL FIXED NOTIFICATION */
 toastContainer:{
 position:"fixed",
 top:"75px",
-left:"1150px",
+right:"120px",
+display:"flex",
+flexDirection:"column",
+alignItems:"flex-end",
+gap:"10px",
+zIndex:1000
+},
+
+toastItem:{
 display:"flex",
 alignItems:"center",
-animation:"slideNotification 0.6s ease forwards",
-zIndex:1000
+animation:"slideDashboard 0.6s ease forwards"
 },
 
 fireTrail:{

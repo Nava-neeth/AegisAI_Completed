@@ -7,6 +7,7 @@ import win32gui
 import win32process
 import smtplib
 from email.mime.text import MIMEText
+import threading
 
 app = FastAPI()
 
@@ -16,14 +17,11 @@ app = FastAPI()
 CPU_THRESHOLD = 90
 RAM_THRESHOLD = 90
 
-SCAN_INTERVAL = 2
-ACTION_COOLDOWN = 1
-
 EMAIL_THRESHOLD = 70
 
-EMAIL_SENDER = "your_email@gmail.com"
-EMAIL_PASSWORD = "your_app_password"
-EMAIL_RECEIVER = "your_email@gmail.com"
+EMAIL_SENDER = "navaneethnavaneeth876@gmail.com"
+EMAIL_PASSWORD = "iymaoveutcroakhw"
+EMAIL_RECEIVER = "navaneethns5656@gmail.com"
 
 SAFE_PROCESS_NAMES = [
     "system","system idle process","services.exe","wininit.exe",
@@ -36,12 +34,20 @@ SAFE_PROCESS_NAMES = [
 
 CURRENT_PID = os.getpid()
 
-LAST_SCAN = 0
-LAST_ACTION = 0
 LAST_EMAIL_TIME = 0
 LAST_NOTIFICATION = "System Running Normally"
+LAST_NOTIFICATION_TIME = 0
 
 LAST_NET = psutil.net_io_counters()
+
+# 🔥 CACHE STORAGE
+CACHE = {
+    "cpu": 0,
+    "memory": 0,
+    "disk": 0,
+    "network": 0,
+    "processes": []
+}
 
 # -----------------------------
 # CORS
@@ -55,18 +61,26 @@ app.add_middleware(
 )
 
 # -----------------------------
-# FOREGROUND PROCESS PROTECTION
+# FOREGROUND PROTECTION
 # -----------------------------
-def get_foreground_pid():
+def get_active_tree():
     try:
         hwnd = win32gui.GetForegroundWindow()
         _, pid = win32process.GetWindowThreadProcessId(hwnd)
-        return pid
+
+        tree = [pid]
+        try:
+            parent = psutil.Process(pid)
+            tree += [p.pid for p in parent.children(recursive=True)]
+        except:
+            pass
+
+        return tree
     except:
-        return None
+        return []
 
 # -----------------------------
-# EMAIL ALERT
+# EMAIL
 # -----------------------------
 def send_email_alert(message):
     global LAST_EMAIL_TIME
@@ -86,26 +100,24 @@ def send_email_alert(message):
         server.sendmail(EMAIL_SENDER, EMAIL_RECEIVER, msg.as_string())
         server.quit()
 
+        print("Email sent")
         LAST_EMAIL_TIME = time.time()
 
     except:
-        pass
+        print("Email failed")
 
 # -----------------------------
-# CORE ENGINE (FULL LOGIC)
+# CORE ENGINE
 # -----------------------------
 def scan_and_kill():
 
-    global LAST_NOTIFICATION
+    global LAST_NOTIFICATION, LAST_NOTIFICATION_TIME
 
-    active_pid = get_foreground_pid()
-
-    print("Scanning processes...")
-
+    active_tree = get_active_tree()
     processes = list(psutil.process_iter(['pid','name']))
-    print(f"Processes scanned: {len(processes)}")
 
-    killed_any = False
+    print("\nScanning processes...")
+    print(f"Processes scanned: {len(processes)}")
 
     for proc in processes:
         try:
@@ -120,30 +132,81 @@ def scan_and_kill():
             # PROTECTION
             if pid in (0,4): continue
             if pid == CURRENT_PID: continue
-            if pid == active_pid: continue
+            if pid in active_tree: continue
             if name_l in SAFE_PROCESS_NAMES: continue
 
-            cpu = proc.cpu_percent(interval=0.05)
+            cpu = proc.cpu_percent(interval=0)
             mem = proc.memory_percent()
 
-            # 🔥 FINAL CONDITION (CPU + RAM BOTH INCLUDED)
             if cpu >= CPU_THRESHOLD or mem >= RAM_THRESHOLD:
 
-                print(f"Heavy process found: {name} CPU={cpu:.1f} RAM={mem:.1f}")
+                print(f"Heavy process found: {name} (CPU {cpu:.1f}%)")
 
                 proc.kill()
 
                 print(f"Process killed: {name}")
 
                 LAST_NOTIFICATION = f"Process killed: {name}"
-                killed_any = True
+                LAST_NOTIFICATION_TIME = time.time()
+
+                return
 
         except:
             continue
 
-    if not killed_any:
-        print("No process exceeds threshold")
+    print("No heavy process found")
+    if time.time() - LAST_NOTIFICATION_TIME > 10:
         LAST_NOTIFICATION = "System Running Normally"
+
+# -----------------------------
+# BACKGROUND CACHE UPDATER
+# -----------------------------
+def background_worker():
+
+    global CACHE, LAST_NET
+
+    while True:
+        try:
+            cpu = psutil.cpu_percent(interval=None)
+            memory = psutil.virtual_memory().percent
+            disk = psutil.disk_usage("C:\\").percent
+
+            net_now = psutil.net_io_counters()
+            network = (net_now.bytes_sent + net_now.bytes_recv -
+                       LAST_NET.bytes_sent - LAST_NET.bytes_recv) / (1024*1024)
+            LAST_NET = net_now
+
+            process_list = []
+            for p in psutil.process_iter(['name']):
+                try:
+                    process_list.append(p.info['name'])
+                except:
+                    continue
+
+            # 🔥 UPDATE CACHE
+            CACHE.update({
+                "cpu": round(cpu,1),
+                "memory": round(memory,1),
+                "disk": round(disk,1),
+                "network": round(network,2),
+                "processes": process_list[:20]
+            })
+
+            # 🔥 KILL LOGIC (background)
+            if cpu > CPU_THRESHOLD or memory > RAM_THRESHOLD:
+                scan_and_kill()
+
+            # EMAIL
+            if cpu > EMAIL_THRESHOLD:
+                send_email_alert(f"High CPU detected: {cpu}%")
+
+            time.sleep(1)
+
+        except:
+            continue
+
+# START BACKGROUND THREAD
+threading.Thread(target=background_worker, daemon=True).start()
 
 # -----------------------------
 # API
@@ -151,53 +214,20 @@ def scan_and_kill():
 @app.get("/status")
 def status():
 
-    global LAST_SCAN, LAST_ACTION, LAST_NET
+    global LAST_NOTIFICATION
 
     try:
 
-        cpu = psutil.cpu_percent(interval=0.2)
-        memory = psutil.virtual_memory().percent
-        disk = psutil.disk_usage("C:\\").percent
-
-        # NETWORK (real-time)
-        net_now = psutil.net_io_counters()
-        network = (net_now.bytes_sent + net_now.bytes_recv -
-                   LAST_NET.bytes_sent - LAST_NET.bytes_recv) / (1024*1024)
-        LAST_NET = net_now
-
-        process_list = []
-        for p in psutil.process_iter(['name']):
-            try:
-                process_list.append(p.info['name'])
-            except:
-                continue
-
-        now = time.time()
-
-        # -----------------------------
-        # MAIN LOGIC
-        # -----------------------------
-        if cpu > CPU_THRESHOLD or memory > RAM_THRESHOLD:
-
-            if now - LAST_SCAN > SCAN_INTERVAL:
-                LAST_SCAN = now
-
-                if now - LAST_ACTION > ACTION_COOLDOWN:
-                    scan_and_kill()
-                    LAST_ACTION = now
-
-        # -----------------------------
-        # EMAIL ALERT
-        # -----------------------------
-        if cpu > EMAIL_THRESHOLD:
-            send_email_alert(f"High system load detected: CPU {cpu}%")
+        # 🔥 NOTIFICATION RESET (10 sec)
+        if time.time() - LAST_NOTIFICATION_TIME > 10:
+            LAST_NOTIFICATION = "System Running Normally"
 
         return {
-            "cpu": round(cpu,1),
-            "memory": round(memory,1),
-            "disk": round(disk,1),
-            "network": round(network,2),
-            "processes": process_list[:20],
+            "cpu": CACHE["cpu"],
+            "memory": CACHE["memory"],
+            "disk": CACHE["disk"],
+            "network": CACHE["network"],
+            "processes": CACHE["processes"],
             "notification": LAST_NOTIFICATION
         }
 

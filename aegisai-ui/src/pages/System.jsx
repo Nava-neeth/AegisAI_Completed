@@ -7,7 +7,6 @@ const [threatCount,setThreatCount]=useState(0)
 const [anomalyLevel,setAnomalyLevel]=useState("Low")
 const [notifications,setNotifications]=useState([])
 
-/* 🔥 FIX: useRef instead of state */
 const lastHealthRef = useRef("Healthy")
 
 useEffect(()=>{
@@ -36,25 +35,20 @@ health="Warning"
 anomaly="Medium"
 }
 
-/* SET STATES */
 setSystemHealth(health)
 setAnomalyLevel(anomaly)
 
-/* 🔥 FIX: compare using ref (no duplicate triggers) */
 if(health !== lastHealthRef.current){
 
 let message = ""
 
 if(health==="Critical")
 message="System under high load"
-
 else if(health==="Warning")
 message="System load increasing"
-
 else
 message="System operating normally"
 
-/* 🔥 NO DUPLICATE NOTIFICATIONS */
 setNotifications(prev=>{
 if(prev[0] === message) return prev
 return [message, ...prev].slice(0,5)
@@ -63,7 +57,6 @@ return [message, ...prev].slice(0,5)
 lastHealthRef.current = health
 }
 
-/* threat count */
 setThreatCount(prev=>{
 if(health==="Critical") return Math.min(prev+1,10)
 return prev
@@ -82,7 +75,8 @@ return ()=>clearInterval(interval)
 
 },[])
 
-/* animation loader */
+
+
 useEffect(()=>{
 
 if(document.getElementById("systemAnim")) return
@@ -91,9 +85,15 @@ const style=document.createElement("style")
 style.id="systemAnim"
 
 style.innerHTML=`
-@keyframes slideNotification{
-0%{transform:translateX(120px);opacity:0;}
-100%{transform:translateX(0);opacity:1;}
+@keyframes slideNotificationSystem{
+0%{
+transform:translateX(120%);
+opacity:0;
+}
+100%{
+transform:translateX(0);
+opacity:1;
+}
 }
 `
 
@@ -101,7 +101,8 @@ document.head.appendChild(style)
 
 },[])
 
-/* COLORS */
+
+
 const getHealthColor=()=>{
 if(systemHealth==="Critical") return "#ef4444"
 if(systemHealth==="Warning") return "#f59e0b"
@@ -114,21 +115,23 @@ if(anomalyLevel==="Medium") return "#f59e0b"
 return "#22c55e"
 }
 
+
+
 return(
 
 <div style={styles.page}>
 
-{/* 🔥 NOTIFICATIONS */}
+{/* ✅ FIXED NOTIFICATION CONTAINER */}
+<div style={styles.toastContainer}>
 {notifications.map((msg,i)=>(
-
-<div key={i} style={styles.toastContainer}>
+<div key={i} style={styles.toastItem}>
   <div style={styles.fireTrail}></div>
-
   <div style={styles.cloudBubble}>
     ⚠️ {msg}
   </div>
 </div>
 ))}
+</div>
 
 <h1 style={styles.title}>
 Defense Control System
@@ -183,6 +186,8 @@ color:getAnomalyColor()
 )
 }
 
+
+
 const styles={
 
 page:{
@@ -227,15 +232,22 @@ anomalyCard:{
 marginTop:"10px"
 },
 
-/* 🔥 NOTIFICATION STYLE */
+/* ✅ FINAL FIX */
 toastContainer:{
 position:"fixed",
 top:"75px",
 right:"120px",
 display:"flex",
-alignItems:"center",
-animation:"slideNotification 0.6s ease forwards",
+flexDirection:"column",
+alignItems:"flex-end",
+gap:"10px",
 zIndex:1000
+},
+
+toastItem:{
+display:"flex",
+alignItems:"center",
+animation:"slideNotificationSystem 0.6s ease forwards"
 },
 
 fireTrail:{

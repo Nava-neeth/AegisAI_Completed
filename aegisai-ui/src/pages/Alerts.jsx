@@ -52,8 +52,6 @@ ram:ramStatus,
 network:netStatus
 })
 
-/* ✅ FIXED ALERT LOGIC (REAL-TIME ONLY) */
-
 let alerts=[]
 
 if(cpuStatus==="CRITICAL")
@@ -98,14 +96,18 @@ useEffect(()=>{
 if(document.getElementById("notifyStyle")) return
 
 const style=document.createElement("style")
-
 style.id="notifyStyle"
 
 style.innerHTML=`
 @keyframes slideNotification{
-0%{transform:translateX(0);}
-60%{transform:translateX(-45vw);}
-100%{transform:translateX(-45vw);}
+0%{
+transform:translateX(120%);
+opacity:0;
+}
+100%{
+transform:translateX(0);
+opacity:1;
+}
 }
 `
 
@@ -137,14 +139,17 @@ return(
 
 <div style={styles.page}>
 
+{/* ✅ SINGLE FIXED CONTAINER */}
+<div style={styles.toastContainer}>
 {notifications.map((msg,i)=>(
-<div key={i} style={styles.toastContainer}>
+<div key={i} style={styles.toastItem}>
   <div style={styles.fireTrail}></div>
   <div style={styles.cloudBubble}>
     ⚠️ {msg}
   </div>
 </div>
 ))}
+</div>
 
 <h1 style={styles.title}>
 Autonomous Threat Detection
@@ -294,15 +299,25 @@ textAlign:"center",
 boxShadow:"0 0 20px rgba(0,0,0,0.6)"
 },
 
+/* ✅ FIXED POSITION + STACK */
 toastContainer:{
 position:"fixed",
 top:"75px",
 right:"120px",
 display:"flex",
-alignItems:"center",
-animation:"slideNotification 0.9s ease forwards",
+flexDirection:"column",
+alignItems:"flex-end",
+gap:"10px",
 zIndex:1000
 },
+
+/* each notification */
+toastItem:{
+display:"flex",
+alignItems:"center",
+animation:"slideNotification 0.6s ease forwards"
+},
+
 fireTrail:{
 width:"60px",
 height:"6px",
@@ -310,6 +325,7 @@ background:"linear-gradient(90deg,#f97316,#ef4444,#facc15)",
 borderRadius:"4px",
 boxShadow:"0 0 20px #f96516"
 },
+
 cloudBubble:{
 background:"#e2e8f0",
 color:"#020617",
