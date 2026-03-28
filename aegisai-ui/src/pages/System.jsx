@@ -7,6 +7,10 @@ const [threatCount,setThreatCount]=useState(0)
 const [anomalyLevel,setAnomalyLevel]=useState("Low")
 const [notifications,setNotifications]=useState([])
 
+/* 🔥 NEW: track previous values */
+const prevMetricsRef = useRef({cpu:0, ram:0})
+
+/* 🔥 track last health (already there) */
 const lastHealthRef = useRef("Healthy")
 
 useEffect(()=>{
@@ -24,20 +28,32 @@ const cpu=data?.cpu || 0
 const ram=data?.memory || 0
 
 let health="Healthy"
-let anomaly="Low"
 
+/* 🔥 HEALTH LOGIC (UNCHANGED STRUCTURE) */
 if(cpu>85 || ram>85){
 health="Critical"
-anomaly="High"
 }
 else if(cpu>60 || ram>60){
 health="Warning"
-anomaly="Medium"
 }
 
 setSystemHealth(health)
+
+/* 🔥 REAL ANOMALY (SPIKE BASED) */
+const prev = prevMetricsRef.current
+
+let anomaly="Low"
+
+if(Math.abs(cpu - prev.cpu) > 20 || Math.abs(ram - prev.ram) > 20){
+anomaly="High"
+}
+else if(cpu>60 || ram>60){
+anomaly="Medium"
+}
+
 setAnomalyLevel(anomaly)
 
+/* 🔥 NOTIFICATION ONLY ON CHANGE */
 if(health !== lastHealthRef.current){
 
 let message = ""
@@ -54,13 +70,16 @@ if(prev[0] === message) return prev
 return [message, ...prev].slice(0,5)
 })
 
+/* 🔥 FIXED THREAT COUNT */
+if(health==="Critical" && lastHealthRef.current !== "Critical"){
+setThreatCount(prev=>Math.min(prev+1,10))
+}
+
 lastHealthRef.current = health
 }
 
-setThreatCount(prev=>{
-if(health==="Critical") return Math.min(prev+1,10)
-return prev
-})
+/* update previous */
+prevMetricsRef.current = {cpu, ram}
 
 }catch(e){
 console.log("System fetch error:",e)
@@ -121,7 +140,6 @@ return(
 
 <div style={styles.page}>
 
-{/* ✅ FIXED NOTIFICATION CONTAINER */}
 <div style={styles.toastContainer}>
 {notifications.map((msg,i)=>(
 <div key={i} style={styles.toastItem}>
@@ -232,7 +250,6 @@ anomalyCard:{
 marginTop:"10px"
 },
 
-/* ✅ FINAL FIX */
 toastContainer:{
 position:"fixed",
 top:"75px",

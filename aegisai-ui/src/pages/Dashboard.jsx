@@ -372,7 +372,7 @@ textAlign:"center"
 /* ✅ FINAL FIXED NOTIFICATION */
 toastContainer:{
 position:"fixed",
-top:"75px",
+top:"70px",
 right:"120px",
 display:"flex",
 flexDirection:"column",

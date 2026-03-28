@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react"
+import { useEffect, useState, useRef } from "react"
 
 function Alerts(){
 
@@ -16,6 +16,16 @@ network:"NORMAL"
 
 const [notifications,setNotifications]=useState([])
 
+/* 🔥 NEW: track previous values for anomaly detection */
+const prevMetricsRef = useRef({cpu:0, ram:0, network:0})
+
+/* 🔥 NEW: prevent duplicate alerts */
+const lastAlertsRef = useRef([])
+
+/* 🔥 NEW: anomaly + response */
+const [anomaly,setAnomaly]=useState("No anomaly detected")
+const [response,setResponse]=useState("Monitoring system stable")
+
 useEffect(()=>{
 
 const fetchStatus=async()=>{
@@ -31,6 +41,7 @@ const network = Number(data?.network) || 0
 
 setMetrics({cpu,ram,network})
 
+/* STATUS */
 const cpuStatus =
 cpu>90 ? "CRITICAL" :
 cpu>70 ? "WARNING" :
@@ -52,6 +63,36 @@ ram:ramStatus,
 network:netStatus
 })
 
+/* 🔥 REAL ANOMALY DETECTION (SPIKE BASED) */
+const prev = prevMetricsRef.current
+
+let anomalyMsg = "No anomaly detected"
+
+if(Math.abs(cpu - prev.cpu) > 20){
+anomalyMsg = "CPU spike detected"
+}
+else if(Math.abs(ram - prev.ram) > 20){
+anomalyMsg = "RAM spike detected"
+}
+else if(Math.abs(network - prev.network) > 25){
+anomalyMsg = "Network spike detected"
+}
+
+setAnomaly(anomalyMsg)
+
+/* 🔥 AUTOMATED RESPONSE (REAL LOGIC) */
+let responseMsg = "Monitoring system stable"
+
+if(cpuStatus==="CRITICAL" || ramStatus==="CRITICAL"){
+responseMsg = "High load detected → limiting processes"
+}
+else if(cpuStatus==="WARNING" || ramStatus==="WARNING"){
+responseMsg = "Optimizing system performance"
+}
+
+setResponse(responseMsg)
+
+/* 🔥 ALERTS */
 let alerts=[]
 
 if(cpuStatus==="CRITICAL")
@@ -73,7 +114,15 @@ if(alerts.length===0){
 alerts.push("System running normally")
 }
 
+/* 🔥 PREVENT DUPLICATES */
+const same = JSON.stringify(alerts) === JSON.stringify(lastAlertsRef.current)
+if(!same){
 setNotifications(alerts)
+lastAlertsRef.current = alerts
+}
+
+/* update previous */
+prevMetricsRef.current = {cpu,ram,network}
 
 }catch(e){
 console.log(e)
@@ -118,19 +167,15 @@ document.head.appendChild(style)
 
 
 const getColor=(state)=>{
-
 if(state==="CRITICAL") return "#ef4444"
 if(state==="WARNING") return "#f59e0b"
 return "#22c55e"
-
 }
 
 const getGlow=(state)=>{
-
 if(state==="CRITICAL") return "0 0 25px rgba(239,68,68,0.8)"
 if(state==="WARNING") return "0 0 20px rgba(245,158,11,0.8)"
 return "0 0 20px rgba(0,0,0,0.6)"
-
 }
 
 
@@ -139,7 +184,6 @@ return(
 
 <div style={styles.page}>
 
-{/* ✅ SINGLE FIXED CONTAINER */}
 <div style={styles.toastContainer}>
 {notifications.map((msg,i)=>(
 <div key={i} style={styles.toastItem}>
@@ -157,29 +201,9 @@ Autonomous Threat Detection
 
 <div style={styles.cardGrid}>
 
-<Card
-title="RAM"
-value={metrics.ram}
-status={status.ram}
-color={getColor(status.ram)}
-glow={getGlow(status.ram)}
-/>
-
-<Card
-title="CPU"
-value={metrics.cpu}
-status={status.cpu}
-color={getColor(status.cpu)}
-glow={getGlow(status.cpu)}
-/>
-
-<Card
-title="NETWORK"
-value={metrics.network}
-status={status.network}
-color={getColor(status.network)}
-glow={getGlow(status.network)}
-/>
+<Card title="RAM" value={metrics.ram} status={status.ram} color={getColor(status.ram)} glow={getGlow(status.ram)} />
+<Card title="CPU" value={metrics.cpu} status={status.cpu} color={getColor(status.cpu)} glow={getGlow(status.cpu)} />
+<Card title="NETWORK" value={metrics.network} status={status.network} color={getColor(status.network)} glow={getGlow(status.network)} />
 
 </div>
 
@@ -188,14 +212,14 @@ glow={getGlow(status.network)}
 <div style={styles.panel}>
 <h2>AI Anomaly Detection</h2>
 <div style={{marginTop:"10px",color:"#22c55e"}}>
-No anomaly detected
+{anomaly}
 </div>
 </div>
 
 <div style={styles.panel}>
 <h2>Automated Response</h2>
 <div style={{marginTop:"10px"}}>
-Monitoring system stable
+{response}
 </div>
 </div>
 
@@ -219,17 +243,11 @@ background:color,
 boxShadow:glow
 }}>
 
-<div style={styles.cardTitle}>
-{title}
-</div>
+<div style={styles.cardTitle}>{title}</div>
 
-<div style={styles.cardValue}>
-{value.toFixed(1)}%
-</div>
+<div style={styles.cardValue}>{value.toFixed(1)}%</div>
 
-<div style={styles.cardStatus}>
-{status}
-</div>
+<div style={styles.cardStatus}>{status}</div>
 
 </div>
 
@@ -270,20 +288,9 @@ borderRadius:"14px",
 textAlign:"center"
 },
 
-cardTitle:{
-fontSize:"20px",
-marginBottom:"8px"
-},
-
-cardValue:{
-fontSize:"18px",
-opacity:0.9
-},
-
-cardStatus:{
-fontSize:"28px",
-fontWeight:"bold"
-},
+cardTitle:{fontSize:"20px",marginBottom:"8px"},
+cardValue:{fontSize:"18px",opacity:0.9},
+cardStatus:{fontSize:"28px",fontWeight:"bold"},
 
 bottomGrid:{
 display:"grid",
@@ -299,7 +306,6 @@ textAlign:"center",
 boxShadow:"0 0 20px rgba(0,0,0,0.6)"
 },
 
-/* ✅ FIXED POSITION + STACK */
 toastContainer:{
 position:"fixed",
 top:"75px",
@@ -311,7 +317,6 @@ gap:"10px",
 zIndex:1000
 },
 
-/* each notification */
 toastItem:{
 display:"flex",
 alignItems:"center",

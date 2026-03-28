@@ -9,15 +9,18 @@ import smtplib
 from email.mime.text import MIMEText
 import threading
 
+GREEN = "\033[92m"
+RESET = "\033[0m"
+
 app = FastAPI()
 
 # -----------------------------
 # SETTINGS
 # -----------------------------
-CPU_THRESHOLD = 90
+CPU_THRESHOLD = 100
 RAM_THRESHOLD = 90
 
-EMAIL_THRESHOLD = 70
+EMAIL_THRESHOLD = 99
 
 EMAIL_SENDER = "navaneethnavaneeth876@gmail.com"
 EMAIL_PASSWORD = "iymaoveutcroakhw"
@@ -27,7 +30,7 @@ SAFE_PROCESS_NAMES = [
     "system","system idle process","services.exe","wininit.exe",
     "lsass.exe","csrss.exe","smss.exe","explorer.exe",
     "python.exe","uvicorn.exe","code.exe",
-    "chrome.exe","msedge.exe",
+    "msedge.exe",
     "dwm.exe","memcompression",
     "shellexperiencehost.exe","msmpeng.exe"
 ]
@@ -144,8 +147,8 @@ def scan_and_kill():
 
                 proc.kill()
 
-                print(f"Process killed: {name}")
-
+                print(f"{GREEN}✔ Process killed: {name}{RESET}")
+                
                 LAST_NOTIFICATION = f"Process killed: {name}"
                 LAST_NOTIFICATION_TIME = time.time()
 
@@ -155,7 +158,7 @@ def scan_and_kill():
             continue
 
     print("No heavy process found")
-    if time.time() - LAST_NOTIFICATION_TIME > 10:
+    if time.time() - LAST_NOTIFICATION_TIME > 15:
         LAST_NOTIFICATION = "System Running Normally"
 
 # -----------------------------
@@ -199,7 +202,7 @@ def background_worker():
             # EMAIL
             if cpu > EMAIL_THRESHOLD:
                 send_email_alert(f"High CPU detected: {cpu}%")
-
+                
             time.sleep(1)
 
         except:
@@ -218,8 +221,8 @@ def status():
 
     try:
 
-        # 🔥 NOTIFICATION RESET (10 sec)
-        if time.time() - LAST_NOTIFICATION_TIME > 10:
+        # 🔥 NOTIFICATION RESET (15 sec)
+        if time.time() - LAST_NOTIFICATION_TIME > 15:
             LAST_NOTIFICATION = "System Running Normally"
 
         return {
