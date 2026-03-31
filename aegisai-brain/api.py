@@ -9,6 +9,9 @@ import smtplib
 from email.mime.text import MIMEText
 import threading
 
+# ✅ ML IMPORT (ADDED)
+from sklearn.ensemble import IsolationForest
+
 GREEN = "\033[92m"
 RESET = "\033[0m"
 
@@ -17,10 +20,10 @@ app = FastAPI()
 # -----------------------------
 # SETTINGS
 # -----------------------------
-CPU_THRESHOLD = 100
+CPU_THRESHOLD = 90
 RAM_THRESHOLD = 90
 
-EMAIL_THRESHOLD = 99
+EMAIL_THRESHOLD = 90
 
 EMAIL_SENDER = "navaneethnavaneeth876@gmail.com"
 EMAIL_PASSWORD = "iymaoveutcroakhw"
@@ -51,6 +54,14 @@ CACHE = {
     "network": 0,
     "processes": []
 }
+
+# -----------------------------
+# ✅ ML VARIABLES (ADDED)
+# -----------------------------
+ML_MODEL = IsolationForest(contamination=0.1)
+ML_DATA = []
+ML_READY = False
+ML_RESULT = "Normal"
 
 # -----------------------------
 # CORS
@@ -132,7 +143,6 @@ def scan_and_kill():
 
             name_l = name.lower()
 
-            # PROTECTION
             if pid in (0,4): continue
             if pid == CURRENT_PID: continue
             if pid in active_tree: continue
@@ -167,6 +177,7 @@ def scan_and_kill():
 def background_worker():
 
     global CACHE, LAST_NET
+    global ML_DATA, ML_READY, ML_RESULT
 
     while True:
         try:
@@ -186,7 +197,6 @@ def background_worker():
                 except:
                     continue
 
-            # 🔥 UPDATE CACHE
             CACHE.update({
                 "cpu": round(cpu,1),
                 "memory": round(memory,1),
@@ -195,11 +205,28 @@ def background_worker():
                 "processes": process_list[:20]
             })
 
-            # 🔥 KILL LOGIC (background)
+            # -----------------------------
+            # ✅ ML LOGIC (ADDED)
+            # -----------------------------
+            ML_DATA.append([cpu, memory])
+
+            if len(ML_DATA) > 20:
+                ML_DATA.pop(0)
+
+            if len(ML_DATA) >= 10:
+                ML_MODEL.fit(ML_DATA)
+                ML_READY = True
+
+            if ML_READY:
+                result = ML_MODEL.predict([[cpu, memory]])
+                ML_RESULT = "Anomaly Detected" if result[0] == -1 else "Normal"
+
+            # -----------------------------
+            # EXISTING LOGIC (UNCHANGED)
+            # -----------------------------
             if cpu > CPU_THRESHOLD or memory > RAM_THRESHOLD:
                 scan_and_kill()
 
-            # EMAIL
             if cpu > EMAIL_THRESHOLD:
                 send_email_alert(f"High CPU detected: {cpu}%")
                 
@@ -221,7 +248,6 @@ def status():
 
     try:
 
-        # 🔥 NOTIFICATION RESET (15 sec)
         if time.time() - LAST_NOTIFICATION_TIME > 15:
             LAST_NOTIFICATION = "System Running Normally"
 
@@ -231,7 +257,10 @@ def status():
             "disk": CACHE["disk"],
             "network": CACHE["network"],
             "processes": CACHE["processes"],
-            "notification": LAST_NOTIFICATION
+            "notification": LAST_NOTIFICATION,
+            
+            # ✅ ML OUTPUT (ADDED)
+            "ml_anomaly": ML_RESULT
         }
 
     except Exception as e:

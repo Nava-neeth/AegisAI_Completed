@@ -7,11 +7,15 @@ const [threatCount,setThreatCount]=useState(0)
 const [anomalyLevel,setAnomalyLevel]=useState("Low")
 const [notifications,setNotifications]=useState([])
 
-/* 🔥 NEW: track previous values */
-const prevMetricsRef = useRef({cpu:0, ram:0})
+/* 🔥 NEW */
+const [threatLogs,setThreatLogs]=useState([])
+const [showLogs,setShowLogs]=useState(false)
 
-/* 🔥 track last health (already there) */
+const prevMetricsRef = useRef({cpu:0, ram:0})
 const lastHealthRef = useRef("Healthy")
+
+/* 🔥 RESET TIMER */
+const resetTimerRef = useRef(null)
 
 useEffect(()=>{
 
@@ -29,7 +33,6 @@ const ram=data?.memory || 0
 
 let health="Healthy"
 
-/* 🔥 HEALTH LOGIC (UNCHANGED STRUCTURE) */
 if(cpu>85 || ram>85){
 health="Critical"
 }
@@ -39,7 +42,6 @@ health="Warning"
 
 setSystemHealth(health)
 
-/* 🔥 REAL ANOMALY (SPIKE BASED) */
 const prev = prevMetricsRef.current
 
 let anomaly="Low"
@@ -53,7 +55,7 @@ anomaly="Medium"
 
 setAnomalyLevel(anomaly)
 
-/* 🔥 NOTIFICATION ONLY ON CHANGE */
+/* 🔥 NOTIFICATION */
 if(health !== lastHealthRef.current){
 
 let message = ""
@@ -70,15 +72,45 @@ if(prev[0] === message) return prev
 return [message, ...prev].slice(0,5)
 })
 
-/* 🔥 FIXED THREAT COUNT */
-if(health==="Critical" && lastHealthRef.current !== "Critical"){
-setThreatCount(prev=>Math.min(prev+1,10))
-}
-
 lastHealthRef.current = health
 }
 
-/* update previous */
+/* 🔥 REAL THREAT DETECTION */
+let threatMessage = null
+
+if(data?.ml_anomaly === "Anomaly Detected"){
+threatMessage = "ML Anomaly Detected"
+}
+else if(data?.notification && data.notification.includes("Process killed")){
+threatMessage = data.notification
+}
+else if(health==="Critical"){
+threatMessage = "Critical System Load"
+}
+
+if(threatMessage){
+
+setThreatCount(prev=>{
+if(prev >= 10) return prev
+return prev + 1
+})
+
+setThreatLogs(prev=>{
+return [threatMessage, ...prev].slice(0,10)
+})
+
+/* 🔥 RESET AFTER 20s */
+if(resetTimerRef.current){
+clearTimeout(resetTimerRef.current)
+}
+
+resetTimerRef.current = setTimeout(()=>{
+setThreatCount(0)
+setThreatLogs([])
+},20000)
+
+}
+
 prevMetricsRef.current = {cpu, ram}
 
 }catch(e){
@@ -105,14 +137,8 @@ style.id="systemAnim"
 
 style.innerHTML=`
 @keyframes slideNotificationSystem{
-0%{
-transform:translateX(120%);
-opacity:0;
-}
-100%{
-transform:translateX(0);
-opacity:1;
-}
+0%{transform:translateX(120%);opacity:0;}
+100%{transform:translateX(0);opacity:1;}
 }
 `
 
@@ -172,12 +198,27 @@ color:getHealthColor()
 
 </div>
 
-<div style={styles.card}>
+{/* 🔥 UPDATED THREAT BOX */}
+<div 
+style={styles.card}
+onMouseEnter={()=>setShowLogs(true)}
+onMouseLeave={()=>setShowLogs(false)}
+>
+
 <h2>Threat Occurrence</h2>
 
 <div style={styles.bigValue}>
 {threatCount}
 </div>
+
+{/* 🔥 HOVER LOG */}
+{showLogs && threatLogs.length>0 && (
+<div style={styles.logBox}>
+{threatLogs.map((t,i)=>(
+<div key={i} style={styles.logItem}>{t}</div>
+))}
+</div>
+)}
 
 </div>
 
@@ -237,7 +278,8 @@ padding:"40px",
 borderRadius:"14px",
 border:"2px solid transparent",
 boxShadow:"0 0 15px rgba(0,0,0,0.6)",
-textAlign:"center"
+textAlign:"center",
+position:"relative"
 },
 
 bigValue:{
@@ -248,6 +290,27 @@ marginTop:"10px"
 
 anomalyCard:{
 marginTop:"10px"
+},
+
+/* 🔥 NEW */
+logBox:{
+position:"absolute",
+top:"100%",
+left:"50%",
+transform:"translateX(-50%)",
+background:"#020617",
+padding:"10px",
+borderRadius:"8px",
+marginTop:"10px",
+width:"220px",
+boxShadow:"0 0 20px rgba(0,0,0,0.6)",
+zIndex:999
+},
+
+logItem:{
+fontSize:"12px",
+padding:"4px 0",
+borderBottom:"1px solid #334155"
 },
 
 toastContainer:{

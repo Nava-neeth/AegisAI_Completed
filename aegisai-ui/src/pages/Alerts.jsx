@@ -16,13 +16,9 @@ network:"NORMAL"
 
 const [notifications,setNotifications]=useState([])
 
-/* 🔥 NEW: track previous values for anomaly detection */
 const prevMetricsRef = useRef({cpu:0, ram:0, network:0})
-
-/* 🔥 NEW: prevent duplicate alerts */
 const lastAlertsRef = useRef([])
 
-/* 🔥 NEW: anomaly + response */
 const [anomaly,setAnomaly]=useState("No anomaly detected")
 const [response,setResponse]=useState("Monitoring system stable")
 
@@ -41,7 +37,6 @@ const network = Number(data?.network) || 0
 
 setMetrics({cpu,ram,network})
 
-/* STATUS */
 const cpuStatus =
 cpu>90 ? "CRITICAL" :
 cpu>70 ? "WARNING" :
@@ -63,7 +58,6 @@ ram:ramStatus,
 network:netStatus
 })
 
-/* 🔥 REAL ANOMALY DETECTION (SPIKE BASED) */
 const prev = prevMetricsRef.current
 
 let anomalyMsg = "No anomaly detected"
@@ -78,9 +72,13 @@ else if(Math.abs(network - prev.network) > 25){
 anomalyMsg = "Network spike detected"
 }
 
-setAnomaly(anomalyMsg)
+const finalAnomaly =
+data.ml_anomaly === "Anomaly Detected"
+? "Anomaly detected"
+: anomalyMsg
 
-/* 🔥 AUTOMATED RESPONSE (REAL LOGIC) */
+setAnomaly(finalAnomaly)
+
 let responseMsg = "Monitoring system stable"
 
 if(cpuStatus==="CRITICAL" || ramStatus==="CRITICAL"){
@@ -92,7 +90,6 @@ responseMsg = "Optimizing system performance"
 
 setResponse(responseMsg)
 
-/* 🔥 ALERTS */
 let alerts=[]
 
 if(cpuStatus==="CRITICAL")
@@ -114,14 +111,12 @@ if(alerts.length===0){
 alerts.push("System running normally")
 }
 
-/* 🔥 PREVENT DUPLICATES */
 const same = JSON.stringify(alerts) === JSON.stringify(lastAlertsRef.current)
 if(!same){
 setNotifications(alerts)
 lastAlertsRef.current = alerts
 }
 
-/* update previous */
 prevMetricsRef.current = {cpu,ram,network}
 
 }catch(e){
@@ -137,8 +132,6 @@ const interval=setInterval(fetchStatus,2000)
 return ()=>clearInterval(interval)
 
 },[])
-
-
 
 useEffect(()=>{
 
@@ -164,8 +157,6 @@ document.head.appendChild(style)
 
 },[])
 
-
-
 const getColor=(state)=>{
 if(state==="CRITICAL") return "#ef4444"
 if(state==="WARNING") return "#f59e0b"
@@ -177,8 +168,6 @@ if(state==="CRITICAL") return "0 0 25px rgba(239,68,68,0.8)"
 if(state==="WARNING") return "0 0 20px rgba(245,158,11,0.8)"
 return "0 0 20px rgba(0,0,0,0.6)"
 }
-
-
 
 return(
 
@@ -210,13 +199,21 @@ Autonomous Threat Detection
 <div style={styles.bottomGrid}>
 
 <div style={styles.panel}>
-<h2>AI Anomaly Detection</h2>
-<div style={{marginTop:"10px",color:"#22c55e"}}>
+<div style={styles.panelHighlight}></div>
+
+<h2> Anomaly Detection</h2>
+<div style={{
+marginTop:"10px",
+color: anomaly.includes("Anomaly") ? "#ef4444" : "#22c55e",
+textShadow: anomaly.includes("Anomaly") ? "0 0 10px rgba(239,68,68,0.7)" : "none"
+}}>
 {anomaly}
 </div>
 </div>
 
 <div style={styles.panel}>
+<div style={styles.panelHighlight}></div>
+
 <h2>Automated Response</h2>
 <div style={{marginTop:"10px"}}>
 {response}
@@ -231,8 +228,6 @@ Autonomous Threat Detection
 
 }
 
-
-
 function Card({title,value,status,color,glow}){
 
 return(
@@ -244,9 +239,7 @@ boxShadow:glow
 }}>
 
 <div style={styles.cardTitle}>{title}</div>
-
 <div style={styles.cardValue}>{value.toFixed(1)}%</div>
-
 <div style={styles.cardStatus}>{status}</div>
 
 </div>
@@ -254,8 +247,6 @@ boxShadow:glow
 )
 
 }
-
-
 
 const styles={
 
@@ -299,11 +290,24 @@ gap:"25px"
 },
 
 panel:{
-background:"#1e293b",
+background:"linear-gradient(135deg,#1e293b,#0f172a)",
 padding:"35px",
 borderRadius:"14px",
 textAlign:"center",
-boxShadow:"0 0 20px rgba(0,0,0,0.6)"
+boxShadow:"0 0 25px rgba(0,0,0,0.7)",
+border:"1px solid rgba(255,255,255,0.05)",
+position:"relative",
+overflow:"hidden"
+},
+
+panelHighlight:{
+position:"absolute",
+top:"0",
+left:"0",
+width:"100%",
+height:"100%",
+background:"radial-gradient(circle at top right, rgba(34,197,94,0.15), transparent 60%)",
+pointerEvents:"none"
 },
 
 toastContainer:{
