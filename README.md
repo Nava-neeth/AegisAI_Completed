@@ -61,7 +61,7 @@ This project was developed as a final-year BCA project focused on practical syst
 | Name | Contribution |
 |------|------|
 | Navaneeth S | Frontend Development, Dashboard Design, UI Integration |
-| Dada Peer | Data Collection and Monitoring Data Handling |
+| Dadapeer | Data Collection and Monitoring Data Handling |
 | Nandakumar PN | Backend Development and System Monitoring Logic |
 
 ---
