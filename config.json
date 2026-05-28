@@ -1,5 +1,0 @@
-{
-    "cpu_threshold": 10,
-    "ram_threshold": 90,
-    "protected_processes": []
-}
